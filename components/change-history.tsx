@@ -36,7 +36,7 @@ function dateTime(v:string){const d=new Date(v);if(Number.isNaN(d.getTime()))ret
 function actionTone(action:string):"green"|"red"|"blue"{return action==="등록"?"green":action==="삭제"?"red":"blue"}
 
 const fieldLabels:Record<Category,Record<string,string>>={
- "신규 DB":{customer_name:"고객명",phone_number:"연락처",sales_manager:"영업 담당자",coordination_manager:"조율 담당자",lead_result:"Meta 전송값",memo:"메모",status:"상태"},
+ "신규 DB":{customer_name:"고객명",phone_number:"연락처",collection_intensity:"추심강도",principal_amount:"대여원금",repayment_total:"상환총액",evidence:"증거보유",third_party_damage:"주변인피해",sales_manager:"영업 담당자",coordination_manager:"조율 담당자",lead_result:"Meta 전송값",memo:"메모",status:"상태"},
  "고객 관리":{registered_at:"등록일",name:"고객명",phone:"연락처",address:"주소",birth_number:"주민번호",sales_manager:"영업 담당자",coordination_manager:"조율 담당자",is_accident:"사고자",accident_contract_amount:"사고자 계약금액",memo:"메모"},
  "계약 관리":{contract_date:"계약일",contract_amount:"계약금액",upfront_amount:"선납금",installment_period:"분납기간",lender_unit_price:"업체당 단가",lender_count:"업체수",memo:"메모"},
  "입금/분납 관리":{due_date:"납부 예정일",expected_amount:"예정금액",paid_date:"실제 입금일",paid_amount:"실입금액",status:"상태",payment_method:"결제방법",schedule_type:"일정구분",reschedule_sequence:"재약정차수",rescheduled_from_id:"이전 납부일정",recovery_date:"환수일",lender_name:"업체명",recovery_type:"환수 구분",amount:"환수금액",memo:"메모"},

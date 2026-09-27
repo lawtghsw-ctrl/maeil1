@@ -9,6 +9,11 @@ type SheetLeadPayload={
   full_name?:unknown;
   phone_number?:unknown;
   leadgen_id?:unknown;
+  collection_strength?:unknown;
+  original_principal?:unknown;
+  repayment_total?:unknown;
+  evidence_held?:unknown;
+  surrounding_damage?:unknown;
   spreadsheet_id?:unknown;
   sheet_id?:unknown;
   row_number?:unknown;
@@ -80,6 +85,11 @@ export async function POST(request:Request){
     const customerName=str(body.full_name);
     const phoneNumber=formatPhone(str(body.phone_number));
     const nativeLeadId=str(body.leadgen_id);
+    const collectionStrength=str(body.collection_strength);
+    const originalPrincipal=str(body.original_principal);
+    const repaymentTotal=str(body.repayment_total);
+    const evidenceHeld=str(body.evidence_held);
+    const surroundingDamage=str(body.surrounding_damage);
     const spreadsheetId=str(body.spreadsheet_id);
     const sheetId=str(body.sheet_id);
     const rowNumber=str(body.row_number);
@@ -90,19 +100,31 @@ export async function POST(request:Request){
 
     const sourceKey=["gsheet",spreadsheetId||"unknown",sheetId||"unknown",rowNumber||`${createdTime}:${customerName}:${phoneNumber}`].join(":");
     const supabase=createAdminClient();
+    const leadFields={
+      collection_intensity:collectionStrength,
+      principal_amount:originalPrincipal,
+      repayment_total:repaymentTotal,
+      evidence:evidenceHeld,
+      third_party_damage:surroundingDamage,
+    };
     const {error}=await supabase.from("meta_leads").insert({
       meta_lead_id:sourceKey,
       created_at:toIso(createdTime),
       customer_name:customerName,
       phone_number:phoneNumber,
       meta_native_lead_id:nativeLeadId||null,
+      memo:"",
+      ...leadFields,
     });
 
     if(error){
       if(error.code==="23505"){
-        if(nativeLeadId){
-          const {error:updateError}=await supabase.from("meta_leads").update({meta_native_lead_id:nativeLeadId}).eq("meta_lead_id",sourceKey).is("meta_native_lead_id",null);
-          if(updateError)console.error("Google Sheet native lead id backfill failed",updateError);
+        const {data:existing}=await supabase.from("meta_leads").select("id,meta_native_lead_id").eq("meta_lead_id",sourceKey).maybeSingle();
+        if(existing){
+          const patch:Record<string,unknown>={...leadFields};
+          if(nativeLeadId&&!existing.meta_native_lead_id)patch.meta_native_lead_id=nativeLeadId;
+          const {error:updateError}=await supabase.from("meta_leads").update(patch).eq("id",existing.id);
+          if(updateError)console.error("Google Sheet duplicate lead backfill failed",updateError);
         }
         return NextResponse.json({ok:true,duplicate:true});
       }

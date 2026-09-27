@@ -70,30 +70,287 @@ export default function Section(){const {section}=useParams<{section:string}>();
 
 type MetaLeadResult="미분류"|"부재중"|"재연락"|"상담중"|"유효리드"|"전환"|"허수";
 const metaLeadResults:MetaLeadResult[]=["미분류","부재중","재연락","상담중","유효리드","전환","허수"];
-type MetaLead={id:string;createdAt:string;name:string;phone:string;manager:Manager;coordinationManager:Manager;lenderCount:number;memo:string;leadResult:MetaLeadResult;status:"신규"|"고객등록완료";customerId:string|null;metaNativeLeadId:string;metaEventName:string;metaEventSentAt:string;metaEventError:string};
+type MetaLead={id:string;createdAt:string;name:string;phone:string;manager:Manager;coordinationManager:Manager;lenderCount:number;memo:string;collectionIntensity:string;principalAmount:string;repaymentTotal:string;evidence:string;thirdPartyDamage:string;leadResult:MetaLeadResult;status:"신규"|"고객등록완료";customerId:string|null;metaNativeLeadId:string;metaEventName:string;metaEventSentAt:string;metaEventError:string};
 const metaSupabase=createClient();
 function formatLeadDate(v:string){if(!v)return "-";const d=new Date(v);if(Number.isNaN(d.getTime()))return v;return new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).format(d)}
 function leadDateOnly(v:string){if(!v)return today();const d=new Date(v);if(Number.isNaN(d.getTime()))return v.slice(0,10)||today();return new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(d)}
 function MetaLeads(){
  const {isAdmin}=useRole();
- const [rows,setRows]=useState<MetaLead[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState<string|null>(null);const [q,setQ]=useState("");const [page,setPage]=useState(1);const [customerOpen,setCustomerOpen]=useState(false);const [selectedLead,setSelectedLead]=useState<MetaLead|null>(null);const [customerForm,setCustomerForm]=useState(emptyCustomer());const [deleteLead,setDeleteLead]=useState<MetaLead|null>(null);
- async function load(silent=false){if(!silent)setLoading(true);setError(null);const {data,error}=await metaSupabase.from("meta_leads").select("*").order("created_at",{ascending:false});if(error){setError(error.message);setRows([]);setLoading(false);return}setRows((data||[]).map((x:any)=>({id:x.id,createdAt:x.created_at||"",name:x.customer_name||"",phone:formatPhone(x.phone_number||""),manager:staffManager((x.sales_manager||x.manager||"신홍규") as Manager),coordinationManager:staffManager((x.coordination_manager||"신홍규") as Manager),lenderCount:Number(x.lender_count||0),memo:x.memo||"",leadResult:(metaLeadResults.includes(x.lead_result as MetaLeadResult)?x.lead_result:"미분류") as MetaLeadResult,status:x.status==="고객등록완료"?"고객등록완료":"신규",customerId:x.customer_id||null,metaNativeLeadId:x.meta_native_lead_id||"",metaEventName:x.meta_event_name||"",metaEventSentAt:x.meta_event_sent_at||"",metaEventError:x.meta_event_error||""})));setLoading(false)}
- useEffect(()=>{void load();let timer:ReturnType<typeof setTimeout>|null=null;let pending=false;const locked=()=>{if(typeof document==="undefined")return false;if(document.querySelector('[data-admin-edit-lock="true"]'))return true;const active=document.activeElement as HTMLElement|null;return !!active&&(active.tagName==="INPUT"||active.tagName==="TEXTAREA"||active.tagName==="SELECT"||active.isContentEditable)};const autoLoad=()=>{if(locked()){pending=true;return}pending=false;void load(true)};const flush=()=>{if(!pending)return;window.setTimeout(()=>{if(pending&&!locked()){pending=false;void load(true)}},0)};const handler=(event:Event)=>{const table=(event as CustomEvent<{table?:string}>).detail?.table;if(table!=="meta_leads")return;if(timer)clearTimeout(timer);timer=setTimeout(autoLoad,120)};window.addEventListener("admin:data-changed",handler);window.addEventListener("admin:edit-lock-changed",flush);document.addEventListener("focusout",flush,true);const fallback=window.setInterval(autoLoad,30000);return()=>{window.removeEventListener("admin:data-changed",handler);window.removeEventListener("admin:edit-lock-changed",flush);document.removeEventListener("focusout",flush,true);window.clearInterval(fallback);if(timer)clearTimeout(timer)}},[]);
- async function sendMetaResult(id:string,leadResult:MetaLeadResult){if(leadResult==="미분류")return;const response=await fetch("/api/meta/crm-event",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({leadId:id,leadResult})});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result?.error||"Meta CRM 데이터 전송에 실패했습니다.")}
- async function updateLead(id:string,patch:Partial<Pick<MetaLead,"manager"|"coordinationManager"|"memo"|"leadResult">>){setRows(prev=>prev.map(x=>x.id===id?{...x,...patch}:x));const db:any={};if(patch.manager!==undefined){db.manager=patch.manager;db.sales_manager=patch.manager;}if(patch.coordinationManager!==undefined)db.coordination_manager=patch.coordinationManager;if(patch.memo!==undefined)db.memo=patch.memo;if(patch.leadResult!==undefined)db.lead_result=patch.leadResult;const {error}=await metaSupabase.from("meta_leads").update(db).eq("id",id);if(error){alert(error.message);await load(true);return}if(patch.leadResult!==undefined&&patch.leadResult!=="미분류"){try{await sendMetaResult(id,patch.leadResult)}catch(e){alert(e instanceof Error?e.message:"Meta CRM 데이터 전송에 실패했습니다.")}await load(true)}}
- async function removeLead(id:string){if(!isAdmin)return alert("신규 DB 삭제는 최종관리자만 가능합니다.");const {error}=await metaSupabase.from("meta_leads").delete().eq("id",id);if(error){alert(error.message);return}setRows(prev=>prev.filter(x=>x.id!==id));setDeleteLead(null)}
- function beginCustomer(lead:MetaLead){if(lead.status==="고객등록완료")return;setSelectedLead(lead);setCustomerForm({...emptyCustomer(),createdAt:leadDateOnly(lead.createdAt),name:lead.name,phone:formatPhone(lead.phone),manager:lead.manager,coordinationManager:lead.coordinationManager,lenderCount:lead.lenderCount,memo:lead.memo});setCustomerOpen(true)}
- async function saveCustomer(){if(!selectedLead)return;if(!customerForm.name.trim()||!customerForm.phone.trim())return alert("고객명과 연락처를 입력해주세요.");const {data,error}=await metaSupabase.from("customers").insert({registered_at:customerForm.createdAt,name:customerForm.name,phone:customerForm.phone,address:customerForm.address||null,birth_number:customerForm.birthNumber||null,manager:customerForm.manager,sales_manager:customerForm.manager,coordination_manager:customerForm.coordinationManager,memo:customerForm.memo,contract_date:customerForm.contractDate||null,contract_amount:customerForm.contractAmount,upfront_amount:customerForm.prepaidAmount,installment_period:customerForm.installmentMonths,lender_unit_price:customerForm.lenderUnitPrice,lender_count:customerForm.lenderCount,is_accident:!!customerForm.isAccident,accident_contract_amount:customerForm.isAccident?(customerForm.prepaidAmount||0):null,accident_marked_at:customerForm.isAccident?new Date().toISOString():null}).select("id").single();if(error)return alert(error.message);if(customerForm.prepaidAmount>0){const paidDate=customerForm.contractDate||customerForm.createdAt;const p=await metaSupabase.from("payment_schedules").insert({customer_id:data.id,due_date:paidDate,expected_amount:customerForm.prepaidAmount,paid_date:paidDate,paid_amount:customerForm.prepaidAmount,status:"완료",payment_method:"계좌이체",memo:"고객 등록 시 선납금 자동 반영"});if(p.error)return alert(p.error.message)}const u=await metaSupabase.from("meta_leads").update({manager:customerForm.manager,sales_manager:customerForm.manager,coordination_manager:customerForm.coordinationManager,lender_count:customerForm.lenderCount,memo:customerForm.memo,lead_result:"전환",status:"고객등록완료",customer_id:data.id,converted_at:new Date().toISOString()}).eq("id",selectedLead.id);if(u.error)return alert(`고객은 등록됐지만 신규 DB 상태 변경에 실패했습니다.\n${u.error.message}`);try{await sendMetaResult(selectedLead.id,"전환")}catch(e){alert(`고객 등록은 완료됐지만 Meta 전환 데이터 전송에 실패했습니다.\n${e instanceof Error?e.message:"전송 오류"}`)}setCustomerOpen(false);setSelectedLead(null);await load(true);alert("고객정보 등록이 완료되었습니다.")}
- const filtered=useMemo(()=>rows.filter(r=>`${r.name} ${r.phone} ${r.leadResult}`.toLowerCase().includes(q.toLowerCase())).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id)),[rows,q]);
- return <><PageHeader title="신규 DB" description="Meta 인스턴트 양식 DB를 확인하고 상담 결과를 CRM 이벤트로 Meta에 피드백합니다."/><Card className="mb-4 p-3"><SearchBox value={q} onChange={v=>{setQ(v);setPage(1)}} onReset={()=>{setQ("");setPage(1)}} placeholder="고객명, 연락처 또는 Meta 전송값 검색"/></Card>{error?<Card className="p-5"><div className="text-sm font-semibold text-red-700">신규 DB를 불러오지 못했습니다.</div><div className="mt-2 text-sm text-slate-500">Supabase에 meta_leads 테이블과 최신 신규DB 마이그레이션을 적용해주세요.</div><div className="mt-2 break-all text-xs text-slate-400">{error}</div></Card>:<Card className="overflow-hidden">
-  <div className="divide-y divide-slate-100 md:hidden">{loading?<div className="px-4 py-10 text-center text-sm text-slate-400">신규 DB를 불러오는 중입니다...</div>:pageRows(filtered,page,10).map(r=><div key={r.id} className="space-y-3 p-4">
-   <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="text-base font-bold text-slate-900">{r.name||"이름 없음"}</span>{r.status==="고객등록완료"?<Badge tone="green">고객등록완료</Badge>:<Badge tone="blue">신규</Badge>}</div><a href={`tel:${r.phone.replace(/[^0-9+]/g,"")}`} className="mt-1 inline-block text-sm font-semibold text-blue-700">{r.phone||"연락처 없음"}</a><div className="mt-1 text-[11px] text-slate-400">{formatLeadDate(r.createdAt)}</div></div>{isAdmin&&<Button variant="danger" className="px-2.5" onClick={()=>setDeleteLead(r)}><Trash2 size={14}/>삭제</Button>}</div>
-   <div className="grid grid-cols-2 gap-2"><Label text="영업 담당자"><select className={field} value={r.manager} disabled={r.status==="고객등록완료"} onChange={e=>void updateLead(r.id,{manager:e.target.value as Manager})}>{managerOptions(r.manager).map(m=><option key={m}>{m}</option>)}</select></Label><Label text="조율 담당자"><select className={field} value={r.coordinationManager} disabled={r.status==="고객등록완료"} onChange={e=>void updateLead(r.id,{coordinationManager:e.target.value as Manager})}>{managerOptions(r.coordinationManager).map(m=><option key={m}>{m}</option>)}</select></Label></div>
-   <Label text="Meta 전송값"><select className={`${field} font-semibold ${r.leadResult==="전환"||r.leadResult==="유효리드"?"text-emerald-700":r.leadResult==="허수"?"text-red-700":r.leadResult==="부재중"||r.leadResult==="재연락"?"text-amber-700":"text-slate-700"}`} value={r.leadResult} onChange={e=>void updateLead(r.id,{leadResult:e.target.value as MetaLeadResult})}>{metaLeadResults.map(x=><option key={x} value={x}>{x}</option>)}</select><div className={`mt-1 break-words text-[10px] ${r.metaEventError?"text-red-500":r.metaEventSentAt?"text-emerald-600":"text-slate-400"}`}>{r.leadResult==="미분류"?"Meta 전송 안 함":r.metaEventError?`Meta 미전송 · ${r.metaEventError}`:r.metaEventSentAt?`Meta 전송완료 · ${r.metaEventName}`:"Meta 전송 대기"}</div>{r.leadResult!=="미분류"&&!r.metaNativeLeadId&&<div className="mt-0.5 text-[10px] text-amber-600">Lead ID 없음 · 전화번호 매칭</div>}</Label>
-   <Label text="메모"><input className={field} value={r.memo} disabled={r.status==="고객등록완료"} onChange={e=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,memo:e.target.value}:x))} onBlur={e=>void updateLead(r.id,{memo:e.target.value})} placeholder="메모 입력"/></Label>
-   <Button className="w-full" disabled={r.status==="고객등록완료"} onClick={()=>beginCustomer(r)}>{r.status==="고객등록완료"?"등록완료":"고객정보등록"}</Button>
-  </div>)}</div>
-  <div className="hidden overflow-x-auto md:block"><table className="admin-responsive-table w-full min-w-[1240px] text-sm"><thead className="bg-slate-50 text-left text-xs text-slate-500"><tr>{["DB 접수일시","고객명","연락처","영업 담당자","조율 담당자","Meta 전송값","메모","상태","","삭제"].map(h=><th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead><tbody>{loading?<tr><td colSpan={10} className="px-4 py-10 text-center text-slate-400">신규 DB를 불러오는 중입니다...</td></tr>:pageRows(filtered,page,10).map(r=><tr key={r.id} className="border-t border-slate-100 align-top"><td className="whitespace-nowrap px-4 py-3">{formatLeadDate(r.createdAt)}</td><td className="px-4 py-3 font-semibold">{r.name}</td><td className="whitespace-nowrap px-4 py-3">{r.phone}</td><td className="px-4 py-3"><select className={`${field} min-w-[110px]`} value={r.manager} disabled={r.status==="고객등록완료"} onChange={e=>void updateLead(r.id,{manager:e.target.value as Manager})}>{managerOptions(r.manager).map(m=><option key={m}>{m}</option>)}</select></td><td className="px-4 py-3"><select className={`${field} min-w-[110px]`} value={r.coordinationManager} disabled={r.status==="고객등록완료"} onChange={e=>void updateLead(r.id,{coordinationManager:e.target.value as Manager})}>{managerOptions(r.coordinationManager).map(m=><option key={m}>{m}</option>)}</select></td><td className="px-4 py-3"><select className={`${field} min-w-[110px] font-semibold ${r.leadResult==="전환"||r.leadResult==="유효리드"?"text-emerald-700":r.leadResult==="허수"?"text-red-700":r.leadResult==="부재중"||r.leadResult==="재연락"?"text-amber-700":"text-slate-700"}`} value={r.leadResult} onChange={e=>void updateLead(r.id,{leadResult:e.target.value as MetaLeadResult})}>{metaLeadResults.map(x=><option key={x} value={x}>{x}</option>)}</select><div className={`mt-1 max-w-[180px] truncate text-[10px] ${r.metaEventError?"text-red-500":r.metaEventSentAt?"text-emerald-600":"text-slate-400"}`} title={r.metaEventError||r.metaEventName}>{r.leadResult==="미분류"?"Meta 전송 안 함":r.metaEventError?`Meta 미전송 · ${r.metaEventError}`:r.metaEventSentAt?`Meta 전송완료 · ${r.metaEventName}`:"Meta 전송 대기"}</div>{r.leadResult!=="미분류"&&!r.metaNativeLeadId&&<div className="mt-0.5 text-[10px] text-amber-600">Lead ID 없음 · 전화번호 매칭</div>}</td><td className="px-4 py-3"><input className={`${field} min-w-[220px]`} value={r.memo} disabled={r.status==="고객등록완료"} onChange={e=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,memo:e.target.value}:x))} onBlur={e=>void updateLead(r.id,{memo:e.target.value})} placeholder="메모 입력"/></td><td className="px-4 py-3">{r.status==="고객등록완료"?<Badge tone="green">고객등록완료</Badge>:<Badge tone="blue">신규</Badge>}</td><td className="px-4 py-3"><Button disabled={r.status==="고객등록완료"} onClick={()=>beginCustomer(r)}>{r.status==="고객등록완료"?"등록완료":"고객정보등록"}</Button></td><td className="px-4 py-3">{isAdmin&&<Button variant="danger" onClick={()=>setDeleteLead(r)}><Trash2 size={14}/>삭제</Button>}</td></tr>)}</tbody></table></div><Pagination page={page} total={filtered.length} onChange={setPage} pageSize={10}/></Card>}<CustomerModal open={customerOpen} form={customerForm} setForm={setCustomerForm} editing={false} onClose={()=>setCustomerOpen(false)} onSave={()=>void saveCustomer()}/><ConfirmDelete open={!!deleteLead} name={deleteLead?.name||"신규 DB"} label="신규 DB 행 (이미 등록된 고객정보는 삭제되지 않음)" onClose={()=>setDeleteLead(null)} onConfirm={()=>{if(deleteLead)void removeLead(deleteLead.id)}}/></>
+ const [rows,setRows]=useState<MetaLead[]>([]);
+ const [loading,setLoading]=useState(true);
+ const [error,setError]=useState<string|null>(null);
+ const [q,setQ]=useState("");
+ const [page,setPage]=useState(1);
+ const [customerOpen,setCustomerOpen]=useState(false);
+ const [selectedLead,setSelectedLead]=useState<MetaLead|null>(null);
+ const [customerForm,setCustomerForm]=useState(emptyCustomer());
+ const [deleteLead,setDeleteLead]=useState<MetaLead|null>(null);
+
+ async function load(silent=false){
+  if(!silent)setLoading(true);
+  setError(null);
+  const {data,error}=await metaSupabase.from("meta_leads").select("*").order("created_at",{ascending:false});
+  if(error){setError(error.message);setRows([]);setLoading(false);return}
+  setRows((data||[]).map((x:any)=>({
+   id:x.id,
+   createdAt:x.created_at||"",
+   name:x.customer_name||"",
+   phone:formatPhone(x.phone_number||""),
+   manager:staffManager((x.sales_manager||x.manager||"신홍규") as Manager),
+   coordinationManager:staffManager((x.coordination_manager||"신홍규") as Manager),
+   lenderCount:Number(x.lender_count||0),
+   memo:x.memo||"",
+   collectionIntensity:x.collection_intensity||"",
+   principalAmount:String(x.principal_amount??""),
+   repaymentTotal:String(x.repayment_total??""),
+   evidence:x.evidence||"",
+   thirdPartyDamage:x.third_party_damage||"",
+   leadResult:(metaLeadResults.includes(x.lead_result as MetaLeadResult)?x.lead_result:"미분류") as MetaLeadResult,
+   status:x.status==="고객등록완료"?"고객등록완료":"신규",
+   customerId:x.customer_id||null,
+   metaNativeLeadId:x.meta_native_lead_id||"",
+   metaEventName:x.meta_event_name||"",
+   metaEventSentAt:x.meta_event_sent_at||"",
+   metaEventError:x.meta_event_error||"",
+  })));
+  setLoading(false);
+ }
+
+ useEffect(()=>{
+  void load();
+  let timer:ReturnType<typeof setTimeout>|null=null;
+  let pending=false;
+  const locked=()=>{
+   if(typeof document==="undefined")return false;
+   if(document.querySelector('[data-admin-edit-lock="true"]'))return true;
+   const active=document.activeElement as HTMLElement|null;
+   return !!active&&(active.tagName==="INPUT"||active.tagName==="TEXTAREA"||active.tagName==="SELECT"||active.isContentEditable);
+  };
+  const autoLoad=()=>{if(locked()){pending=true;return}pending=false;void load(true)};
+  const flush=()=>{if(!pending)return;window.setTimeout(()=>{if(pending&&!locked()){pending=false;void load(true)}},0)};
+  const handler=(event:Event)=>{
+   const table=(event as CustomEvent<{table?:string}>).detail?.table;
+   if(table!=="meta_leads")return;
+   if(timer)clearTimeout(timer);
+   timer=setTimeout(autoLoad,120);
+  };
+  window.addEventListener("admin:data-changed",handler);
+  window.addEventListener("admin:edit-lock-changed",flush);
+  document.addEventListener("focusout",flush,true);
+  const fallback=window.setInterval(autoLoad,30000);
+  return()=>{
+   window.removeEventListener("admin:data-changed",handler);
+   window.removeEventListener("admin:edit-lock-changed",flush);
+   document.removeEventListener("focusout",flush,true);
+   window.clearInterval(fallback);
+   if(timer)clearTimeout(timer);
+  };
+ },[]);
+
+ async function sendMetaResult(id:string,leadResult:MetaLeadResult){
+  if(leadResult==="미분류")return;
+  const response=await fetch("/api/meta/crm-event",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({leadId:id,leadResult})});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(result?.error||"Meta CRM 데이터 전송에 실패했습니다.");
+ }
+
+ async function updateLead(id:string,patch:Partial<Pick<MetaLead,"manager"|"coordinationManager"|"memo"|"leadResult">>){
+  setRows(prev=>prev.map(x=>x.id===id?{...x,...patch}:x));
+  const db:any={};
+  if(patch.manager!==undefined){db.manager=patch.manager;db.sales_manager=patch.manager}
+  if(patch.coordinationManager!==undefined)db.coordination_manager=patch.coordinationManager;
+  if(patch.memo!==undefined)db.memo=patch.memo;
+  if(patch.leadResult!==undefined)db.lead_result=patch.leadResult;
+  const {error}=await metaSupabase.from("meta_leads").update(db).eq("id",id);
+  if(error){alert(error.message);await load(true);return}
+  if(patch.leadResult!==undefined&&patch.leadResult!=="미분류"){
+   try{await sendMetaResult(id,patch.leadResult)}catch(e){alert(e instanceof Error?e.message:"Meta CRM 데이터 전송에 실패했습니다.")}
+   await load(true);
+  }
+ }
+
+ async function removeLead(id:string){
+  if(!isAdmin)return alert("신규 DB 삭제는 최종관리자만 가능합니다.");
+  const {error}=await metaSupabase.from("meta_leads").delete().eq("id",id);
+  if(error){alert(error.message);return}
+  setRows(prev=>prev.filter(x=>x.id!==id));
+  setDeleteLead(null);
+ }
+
+ function beginCustomer(lead:MetaLead){
+  if(lead.status==="고객등록완료")return;
+  setSelectedLead(lead);
+  setCustomerForm({
+   ...emptyCustomer(),
+   createdAt:leadDateOnly(lead.createdAt),
+   name:lead.name,
+   phone:formatPhone(lead.phone),
+   manager:lead.manager,
+   coordinationManager:lead.coordinationManager,
+   lenderCount:lead.lenderCount,
+   memo:lead.memo,
+  });
+  setCustomerOpen(true);
+ }
+
+ async function saveCustomer(){
+  if(!selectedLead)return;
+  if(!customerForm.name.trim()||!customerForm.phone.trim())return alert("고객명과 연락처를 입력해주세요.");
+  const {data,error}=await metaSupabase.from("customers").insert({
+   registered_at:customerForm.createdAt,
+   name:customerForm.name,
+   phone:customerForm.phone,
+   address:customerForm.address||null,
+   birth_number:customerForm.birthNumber||null,
+   manager:customerForm.manager,
+   sales_manager:customerForm.manager,
+   coordination_manager:customerForm.coordinationManager,
+   memo:customerForm.memo,
+   contract_date:customerForm.contractDate||null,
+   contract_amount:customerForm.contractAmount,
+   upfront_amount:customerForm.prepaidAmount,
+   installment_period:customerForm.installmentMonths,
+   lender_unit_price:customerForm.lenderUnitPrice,
+   lender_count:customerForm.lenderCount,
+   is_accident:!!customerForm.isAccident,
+   accident_contract_amount:customerForm.isAccident?(customerForm.prepaidAmount||0):null,
+   accident_marked_at:customerForm.isAccident?new Date().toISOString():null,
+  }).select("id").single();
+  if(error)return alert(error.message);
+
+  if(customerForm.prepaidAmount>0){
+   const paidDate=customerForm.contractDate||customerForm.createdAt;
+   const p=await metaSupabase.from("payment_schedules").insert({
+    customer_id:data.id,due_date:paidDate,expected_amount:customerForm.prepaidAmount,
+    paid_date:paidDate,paid_amount:customerForm.prepaidAmount,status:"완료",
+    payment_method:"계좌이체",memo:"고객 등록 시 선납금 자동 반영"
+   });
+   if(p.error)return alert(p.error.message);
+  }
+
+  const u=await metaSupabase.from("meta_leads").update({
+   manager:customerForm.manager,
+   sales_manager:customerForm.manager,
+   coordination_manager:customerForm.coordinationManager,
+   lender_count:customerForm.lenderCount,
+   memo:customerForm.memo,
+   lead_result:"전환",
+   status:"고객등록완료",
+   customer_id:data.id,
+   converted_at:new Date().toISOString(),
+  }).eq("id",selectedLead.id);
+  if(u.error)return alert(`고객은 등록됐지만 신규 DB 상태 변경에 실패했습니다.\n${u.error.message}`);
+
+  try{await sendMetaResult(selectedLead.id,"전환")}
+  catch(e){alert(`고객 등록은 완료됐지만 Meta 전환 데이터 전송에 실패했습니다.\n${e instanceof Error?e.message:"전송 오류"}`)}
+  setCustomerOpen(false);
+  setSelectedLead(null);
+  await load(true);
+  alert("고객정보 등록이 완료되었습니다.");
+ }
+
+ const filtered=useMemo(()=>{
+  const query=q.toLowerCase();
+  return rows
+   .filter(r=>`${r.name} ${r.phone} ${r.leadResult} ${r.memo} ${r.collectionIntensity} ${r.principalAmount} ${r.repaymentTotal} ${r.evidence} ${r.thirdPartyDamage}`.toLowerCase().includes(query))
+   .sort((a,b)=>b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id));
+ },[rows,q]);
+
+ return <>
+  <PageHeader title="신규 DB" description="연동된 Google Sheet 신규 DB와 신청정보를 확인하고 상담 결과를 관리합니다."/>
+  <Card className="mb-4 p-3">
+   <SearchBox value={q} onChange={v=>{setQ(v);setPage(1)}} onReset={()=>{setQ("");setPage(1)}} placeholder="고객명, 연락처, 추심강도, 금액, 증거/주변인피해, 메모 또는 상태 검색"/>
+  </Card>
+
+  {error?
+   <Card className="p-5">
+    <div className="text-sm font-semibold text-red-700">신규 DB를 불러오지 못했습니다.</div>
+    <div className="mt-2 text-sm text-slate-500">Supabase에 최신 신규DB 신청정보 마이그레이션을 적용해주세요.</div>
+    <div className="mt-2 break-all text-xs text-slate-400">{error}</div>
+   </Card>
+   :
+   <Card className="overflow-hidden">
+    <div className="divide-y divide-slate-100 md:hidden">
+     {loading?<div className="px-4 py-10 text-center text-sm text-slate-400">신규 DB를 불러오는 중입니다...</div>:
+      pageRows(filtered,page,10).map(r=><div key={r.id} className="space-y-3 p-4">
+       <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+         <div className="flex flex-wrap items-center gap-2">
+          <span className="text-base font-bold text-slate-900">{r.name||"이름 없음"}</span>
+          {r.status==="고객등록완료"?<Badge tone="green">고객등록완료</Badge>:<Badge tone="blue">신규</Badge>}
+         </div>
+         <a href={`tel:${r.phone.replace(/[^0-9+]/g,"")}`} className="mt-1 inline-block text-sm font-semibold text-blue-700">{r.phone||"연락처 없음"}</a>
+         <div className="mt-1 text-[11px] text-slate-400">{formatLeadDate(r.createdAt)}</div>
+        </div>
+        {isAdmin&&<Button variant="danger" className="px-2.5" onClick={()=>setDeleteLead(r)}><Trash2 size={14}/>삭제</Button>}
+       </div>
+
+       <div className="grid grid-cols-2 gap-2 text-sm">
+        {[
+         ["추심강도",r.collectionIntensity],
+         ["대여원금",r.principalAmount],
+         ["상환총액",r.repaymentTotal],
+         ["증거보유",r.evidence],
+        ].map(([label,value])=><div key={label} className="rounded-lg bg-slate-50 p-2"><div className="text-[11px] font-semibold text-slate-400">{label}</div><div className="mt-1 whitespace-pre-wrap break-words font-semibold text-slate-800">{value||"-"}</div></div>)}
+       </div>
+       <div className="rounded-lg border border-slate-100 p-3 text-sm"><div className="text-[11px] font-semibold text-slate-400">주변인피해</div><div className="mt-1 whitespace-pre-wrap break-words text-slate-700">{r.thirdPartyDamage||"-"}</div></div>
+
+       <div className="grid grid-cols-2 gap-2">
+        <Label text="영업 담당자"><select className={field} value={r.manager} disabled={r.status==="고객등록완료"} onChange={e=>void updateLead(r.id,{manager:e.target.value as Manager})}>{managerOptions(r.manager).map(m=><option key={m}>{m}</option>)}</select></Label>
+        <Label text="조율 담당자"><select className={field} value={r.coordinationManager} disabled={r.status==="고객등록완료"} onChange={e=>void updateLead(r.id,{coordinationManager:e.target.value as Manager})}>{managerOptions(r.coordinationManager).map(m=><option key={m}>{m}</option>)}</select></Label>
+       </div>
+
+       <Label text="Meta 전송값">
+        <select className={`${field} font-semibold ${r.leadResult==="전환"||r.leadResult==="유효리드"?"text-emerald-700":r.leadResult==="허수"?"text-red-700":r.leadResult==="부재중"||r.leadResult==="재연락"?"text-amber-700":"text-slate-700"}`} value={r.leadResult} onChange={e=>void updateLead(r.id,{leadResult:e.target.value as MetaLeadResult})}>{metaLeadResults.map(x=><option key={x} value={x}>{x}</option>)}</select>
+        <div className={`mt-1 break-words text-[10px] ${r.metaEventError?"text-red-500":r.metaEventSentAt?"text-emerald-600":"text-slate-400"}`}>{r.leadResult==="미분류"?"Meta 전송 안 함":r.metaEventError?`Meta 미전송 · ${r.metaEventError}`:r.metaEventSentAt?`Meta 전송완료 · ${r.metaEventName}`:"Meta 전송 대기"}</div>
+        {r.leadResult!=="미분류"&&!r.metaNativeLeadId&&<div className="mt-0.5 text-[10px] text-amber-600">Lead ID 없음 · 전화번호 매칭</div>}
+       </Label>
+
+       <Label text="메모"><input className={field} value={r.memo} disabled={r.status==="고객등록완료"} onChange={e=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,memo:e.target.value}:x))} onBlur={e=>void updateLead(r.id,{memo:e.target.value})} placeholder="상담 메모 입력"/></Label>
+       <Button className="w-full" disabled={r.status==="고객등록완료"} onClick={()=>beginCustomer(r)}>{r.status==="고객등록완료"?"등록완료":"고객정보등록"}</Button>
+      </div>)
+     }
+    </div>
+
+    <div className="hidden overflow-x-auto md:block">
+     <table className="admin-responsive-table w-full min-w-[1960px] text-sm">
+      <thead className="bg-slate-50 text-left text-xs text-slate-500">
+       <tr>{["DB 접수일시","고객명","연락처","추심강도","대여원금","상환총액","증거보유","주변인피해","영업 담당자","조율 담당자","Meta 전송값","메모","상태","","삭제"].map(h=><th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr>
+      </thead>
+      <tbody>
+       {loading?<tr><td colSpan={15} className="px-4 py-10 text-center text-slate-400">신규 DB를 불러오는 중입니다...</td></tr>:
+        pageRows(filtered,page,10).map(r=><tr key={r.id} className="border-t border-slate-100 align-top">
+         <td className="whitespace-nowrap px-4 py-3">{formatLeadDate(r.createdAt)}</td>
+         <td className="whitespace-nowrap px-4 py-3 font-semibold">{r.name}</td>
+         <td className="whitespace-nowrap px-4 py-3">{r.phone}</td>
+         <td className="max-w-[200px] whitespace-normal break-keep px-4 py-3">{r.collectionIntensity||"-"}</td>
+         <td className="whitespace-nowrap px-4 py-3 font-semibold">{r.principalAmount||"-"}</td>
+         <td className="whitespace-nowrap px-4 py-3 font-semibold">{r.repaymentTotal||"-"}</td>
+         <td className="max-w-[200px] whitespace-normal break-keep px-4 py-3">{r.evidence||"-"}</td>
+         <td className="max-w-[240px] whitespace-normal break-keep px-4 py-3">{r.thirdPartyDamage||"-"}</td>
+         <td className="px-4 py-3"><select className={`${field} min-w-[110px]`} value={r.manager} disabled={r.status==="고객등록완료"} onChange={e=>void updateLead(r.id,{manager:e.target.value as Manager})}>{managerOptions(r.manager).map(m=><option key={m}>{m}</option>)}</select></td>
+         <td className="px-4 py-3"><select className={`${field} min-w-[110px]`} value={r.coordinationManager} disabled={r.status==="고객등록완료"} onChange={e=>void updateLead(r.id,{coordinationManager:e.target.value as Manager})}>{managerOptions(r.coordinationManager).map(m=><option key={m}>{m}</option>)}</select></td>
+         <td className="px-4 py-3">
+          <select className={`${field} min-w-[110px] font-semibold ${r.leadResult==="전환"||r.leadResult==="유효리드"?"text-emerald-700":r.leadResult==="허수"?"text-red-700":r.leadResult==="부재중"||r.leadResult==="재연락"?"text-amber-700":"text-slate-700"}`} value={r.leadResult} onChange={e=>void updateLead(r.id,{leadResult:e.target.value as MetaLeadResult})}>{metaLeadResults.map(x=><option key={x} value={x}>{x}</option>)}</select>
+          <div className={`mt-1 max-w-[180px] truncate text-[10px] ${r.metaEventError?"text-red-500":r.metaEventSentAt?"text-emerald-600":"text-slate-400"}`} title={r.metaEventError||r.metaEventName}>{r.leadResult==="미분류"?"Meta 전송 안 함":r.metaEventError?`Meta 미전송 · ${r.metaEventError}`:r.metaEventSentAt?`Meta 전송완료 · ${r.metaEventName}`:"Meta 전송 대기"}</div>
+          {r.leadResult!=="미분류"&&!r.metaNativeLeadId&&<div className="mt-0.5 text-[10px] text-amber-600">Lead ID 없음 · 전화번호 매칭</div>}
+         </td>
+         <td className="px-4 py-3"><input className={`${field} min-w-[220px]`} value={r.memo} disabled={r.status==="고객등록완료"} onChange={e=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,memo:e.target.value}:x))} onBlur={e=>void updateLead(r.id,{memo:e.target.value})} placeholder="상담 메모 입력"/></td>
+         <td className="px-4 py-3">{r.status==="고객등록완료"?<Badge tone="green">고객등록완료</Badge>:<Badge tone="blue">신규</Badge>}</td>
+         <td className="px-4 py-3"><Button disabled={r.status==="고객등록완료"} onClick={()=>beginCustomer(r)}>{r.status==="고객등록완료"?"등록완료":"고객정보등록"}</Button></td>
+         <td className="px-4 py-3">{isAdmin&&<Button variant="danger" onClick={()=>setDeleteLead(r)}><Trash2 size={14}/>삭제</Button>}</td>
+        </tr>)
+       }
+      </tbody>
+     </table>
+    </div>
+    <Pagination page={page} total={filtered.length} onChange={setPage} pageSize={10}/>
+   </Card>
+  }
+
+  <CustomerModal open={customerOpen} form={customerForm} setForm={setCustomerForm} editing={false} onClose={()=>setCustomerOpen(false)} onSave={()=>void saveCustomer()}/>
+  <ConfirmDelete open={!!deleteLead} name={deleteLead?.name||"신규 DB"} label="신규 DB 행 (이미 등록된 고객정보는 삭제되지 않음)" onClose={()=>setDeleteLead(null)} onConfirm={()=>{if(deleteLead)void removeLead(deleteLead.id)}}/>
+ </>;
 }
 
 const emptyCustomer=():Omit<Customer,"id">=>({createdAt:today(),name:"",phone:"",address:"",birthNumber:"",manager:"신홍규",coordinationManager:"신홍규",memo:"",contractDate:"",contractAmount:0,prepaidAmount:0,installmentMonths:0,lenderUnitPrice:0,lenderCount:0,isAccident:false});
