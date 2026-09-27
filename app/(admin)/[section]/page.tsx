@@ -74,6 +74,7 @@ type MetaLead={id:string;createdAt:string;name:string;phone:string;manager:Manag
 const metaSupabase=createClient();
 function formatLeadDate(v:string){if(!v)return "-";const d=new Date(v);if(Number.isNaN(d.getTime()))return v;return new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).format(d)}
 function leadDateOnly(v:string){if(!v)return today();const d=new Date(v);if(Number.isNaN(d.getTime()))return v.slice(0,10)||today();return new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(d)}
+function leadPhoneDigits(v:string){return String(v||"").replace(/\D/g,"").replace(/^82/,"0").slice(0,11)}
 function MetaLeads(){
  const {isAdmin}=useRole();
  const [rows,setRows]=useState<MetaLead[]>([]);
@@ -196,6 +197,9 @@ function MetaLeads(){
  async function saveCustomer(){
   if(!selectedLead)return;
   if(!customerForm.name.trim()||!customerForm.phone.trim())return alert("고객명과 연락처를 입력해주세요.");
+  const {data:customerCandidates,error:customerLookupError}=await metaSupabase.from("customers").select("id,name,phone").eq("name",customerForm.name.trim()).limit(100);
+  if(customerLookupError)return alert(customerLookupError.message);
+  if((customerCandidates||[]).some((x:any)=>leadPhoneDigits(x.phone)===leadPhoneDigits(customerForm.phone)))return alert("같은 이름과 전화번호의 고객이 이미 등록되어 있습니다. 기존 고객정보를 확인해주세요.");
   const {data,error}=await metaSupabase.from("customers").insert({
    registered_at:customerForm.createdAt,
    name:customerForm.name,

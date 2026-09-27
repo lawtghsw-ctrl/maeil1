@@ -107,6 +107,32 @@ export async function POST(request:Request){
       evidence:evidenceHeld,
       third_party_damage:surroundingDamage,
     };
+
+    // 같은 이름 + 같은 전화번호는 다른 시트 행이어도 신규 DB를 중복 생성하지 않습니다.
+    if(customerName&&phoneNumber){
+      const {data:candidates,error:duplicateLookupError}=await supabase
+        .from("meta_leads")
+        .select("id,phone_number,meta_native_lead_id,collection_intensity,principal_amount,repayment_total,evidence,third_party_damage")
+        .eq("customer_name",customerName)
+        .limit(100);
+      if(duplicateLookupError)throw new Error(duplicateLookupError.message);
+      const duplicate=(candidates||[]).find((candidate:any)=>normalizePhone(String(candidate.phone_number||""))===normalizePhone(phoneNumber));
+      if(duplicate){
+        const patch:Record<string,unknown>={};
+        if(nativeLeadId&&!duplicate.meta_native_lead_id)patch.meta_native_lead_id=nativeLeadId;
+        if(collectionStrength&&!duplicate.collection_intensity)patch.collection_intensity=collectionStrength;
+        if(originalPrincipal&&!duplicate.principal_amount)patch.principal_amount=originalPrincipal;
+        if(repaymentTotal&&!duplicate.repayment_total)patch.repayment_total=repaymentTotal;
+        if(evidenceHeld&&!duplicate.evidence)patch.evidence=evidenceHeld;
+        if(surroundingDamage&&!duplicate.third_party_damage)patch.third_party_damage=surroundingDamage;
+        if(Object.keys(patch).length){
+          const {error:updateError}=await supabase.from("meta_leads").update(patch).eq("id",duplicate.id);
+          if(updateError)throw new Error(updateError.message);
+        }
+        return NextResponse.json({ok:true,duplicate:true,duplicateBy:"name_phone",id:duplicate.id});
+      }
+    }
+
     const {error}=await supabase.from("meta_leads").insert({
       meta_lead_id:sourceKey,
       created_at:toIso(createdTime),
