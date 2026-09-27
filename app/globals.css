@@ -1,0 +1,150 @@
+@import "tailwindcss";
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { margin: 0; background: #f6f8fb; color: #172033; font-family: Arial, "Pretendard", "Noto Sans KR", sans-serif; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+@keyframes new-db-attention {
+  0%, 100% { opacity: 1; box-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 0 0 0 rgb(245 158 11 / 0); }
+  50% { opacity: 0.72; box-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 0 0 3px rgb(245 158 11 / 0.10); }
+}
+.new-db-alert-pulse { animation: new-db-attention 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .new-db-alert-pulse { animation: none; } }
+
+/* v21 mobile optimization: iPhone/Android readability + touch targets */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { overflow-x: hidden; }
+button, a, input, select, textarea { touch-action: manipulation; }
+
+@media (max-width: 767px) {
+  input, select, textarea { font-size: 16px !important; }
+
+  .overflow-x-auto,
+  .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-inline: contain;
+  }
+
+  .overflow-x-auto > table,
+  .overflow-auto > table {
+    width: max-content !important;
+    min-width: 100% !important;
+    table-layout: auto !important;
+  }
+
+  .overflow-x-auto > table th,
+  .overflow-x-auto > table td,
+  .overflow-auto > table th,
+  .overflow-auto > table td {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  table button,
+  table span,
+  table select {
+    white-space: nowrap;
+    word-break: keep-all;
+  }
+
+  table input,
+  table select {
+    min-width: 120px;
+  }
+}
+
+
+/* v22 full-admin mobile table/readability optimization */
+.admin-responsive-table {
+  border-collapse: collapse;
+}
+
+@media (max-width: 767px) {
+  main { min-width: 0; max-width: 100vw; }
+
+  /* Every operational table must scroll horizontally instead of crushing Korean text vertically. */
+  .admin-responsive-table {
+    width: max-content !important;
+    min-width: 100% !important;
+    table-layout: auto !important;
+  }
+
+  .admin-responsive-table th,
+  .admin-responsive-table td {
+    min-width: 104px !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    line-height: 1.4 !important;
+    vertical-align: middle !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .admin-responsive-table th *,
+  .admin-responsive-table td * {
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+  }
+
+  .admin-responsive-table th {
+    min-width: 96px !important;
+    font-size: 12px !important;
+  }
+
+  .admin-responsive-table td {
+    font-size: 14px !important;
+  }
+
+  /* Common data columns such as phone/date/name need enough room to stay on one readable line. */
+  .admin-responsive-table input,
+  .admin-responsive-table select,
+  .admin-responsive-table button,
+  .admin-responsive-table a,
+  .admin-responsive-table span,
+  .admin-responsive-table div {
+    white-space: nowrap !important;
+  }
+
+  .admin-responsive-table input,
+  .admin-responsive-table select {
+    min-width: 128px !important;
+  }
+
+  /* All table scroll containers stay inside the phone viewport and get native momentum scrolling. */
+  .overflow-x-auto,
+  .overflow-auto {
+    max-width: 100% !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  /* Cards and filters may shrink, tables may not. */
+  .rounded-xl,
+  .rounded-2xl {
+    min-width: 0;
+  }
+
+  /* Keep search/reset controls readable on narrow iPhone/Android screens. */
+  input::placeholder { text-overflow: ellipsis; }
+
+  /* Compact, tap-friendly buttons without vertical Korean letter wrapping. */
+  button,
+  [role="button"] {
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+  }
+
+  /* Long page descriptions wrap by Korean words, not by individual glyphs. */
+  h1, h2, h3, p, label {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+}

@@ -1,0 +1,4 @@
+"use client";
+import {ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid} from "recharts";
+const data=[{d:"8/10",v:12},{d:"8/11",v:18},{d:"8/12",v:15},{d:"8/13",v:24},{d:"8/14",v:21},{d:"8/15",v:31},{d:"8/16",v:28}];
+export function DashboardChart(){return <div className="h-[250px]"><ResponsiveContainer width="100%" height="100%"><AreaChart data={data}><defs><linearGradient id="fillBlue" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.20}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0.02}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="d" axisLine={false} tickLine={false} tick={{fontSize:12,fill:"#94a3b8"}}/><YAxis axisLine={false} tickLine={false} tick={{fontSize:12,fill:"#94a3b8"}}/><Tooltip/><Area type="monotone" dataKey="v" stroke="#2563eb" strokeWidth={2} fill="url(#fillBlue)"/></AreaChart></ResponsiveContainer></div>}
