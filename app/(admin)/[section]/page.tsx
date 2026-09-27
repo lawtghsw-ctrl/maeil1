@@ -70,7 +70,7 @@ export default function Section(){const {section}=useParams<{section:string}>();
 
 type MetaLeadResult="미분류"|"부재중"|"재연락"|"상담중"|"유효리드"|"전환"|"허수";
 const metaLeadResults:MetaLeadResult[]=["미분류","부재중","재연락","상담중","유효리드","전환","허수"];
-type MetaLead={id:string;createdAt:string;name:string;phone:string;manager:Manager;coordinationManager:Manager;lenderCount:number;memo:string;collectionIntensity:string;principalAmount:string;repaymentTotal:string;evidence:string;thirdPartyDamage:string;leadResult:MetaLeadResult;status:"신규"|"고객등록완료";customerId:string|null;metaNativeLeadId:string;metaEventName:string;metaEventSentAt:string;metaEventError:string};
+type MetaLead={id:string;createdAt:string;sourceRowNumber:number;name:string;phone:string;manager:Manager;coordinationManager:Manager;lenderCount:number;memo:string;collectionIntensity:string;principalAmount:string;repaymentTotal:string;evidence:string;thirdPartyDamage:string;leadResult:MetaLeadResult;status:"신규"|"고객등록완료";customerId:string|null;metaNativeLeadId:string;metaEventName:string;metaEventSentAt:string;metaEventError:string};
 const metaSupabase=createClient();
 function formatLeadDate(v:string){if(!v)return "-";const d=new Date(v);if(Number.isNaN(d.getTime()))return v;return new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).format(d)}
 function leadDateOnly(v:string){if(!v)return today();const d=new Date(v);if(Number.isNaN(d.getTime()))return v.slice(0,10)||today();return new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(d)}
@@ -90,11 +90,12 @@ function MetaLeads(){
  async function load(silent=false){
   if(!silent)setLoading(true);
   setError(null);
-  const {data,error}=await metaSupabase.from("meta_leads").select("*").order("created_at",{ascending:false});
+  const {data,error}=await metaSupabase.from("meta_leads").select("*").order("source_row_number",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false}).order("id",{ascending:false});
   if(error){setError(error.message);setRows([]);setLoading(false);return}
   setRows((data||[]).map((x:any)=>({
    id:x.id,
    createdAt:x.created_at||"",
+   sourceRowNumber:Number(x.source_row_number||0),
    name:x.customer_name||"",
    phone:formatPhone(x.phone_number||""),
    manager:staffManager((x.sales_manager||x.manager||"신홍규") as Manager),
@@ -257,7 +258,7 @@ function MetaLeads(){
   const query=q.toLowerCase();
   return rows
    .filter(r=>`${r.name} ${r.phone} ${r.leadResult} ${r.memo} ${r.collectionIntensity} ${r.principalAmount} ${r.repaymentTotal} ${r.evidence} ${r.thirdPartyDamage}`.toLowerCase().includes(query))
-   .sort((a,b)=>b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id));
+   .sort((a,b)=>(b.sourceRowNumber-a.sourceRowNumber)||b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id));
  },[rows,q]);
 
  return <>

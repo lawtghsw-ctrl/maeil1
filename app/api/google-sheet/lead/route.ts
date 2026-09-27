@@ -100,19 +100,22 @@ export async function POST(request:Request){
 
     const sourceKey=["gsheet",spreadsheetId||"unknown",sheetId||"unknown",rowNumber||`${createdTime}:${customerName}:${phoneNumber}`].join(":");
     const supabase=createAdminClient();
+    const parsedRowNumber=Number.parseInt(rowNumber,10);
+    const sourceRowNumber=Number.isFinite(parsedRowNumber)&&parsedRowNumber>0?parsedRowNumber:null;
     const leadFields={
       collection_intensity:collectionStrength,
       principal_amount:originalPrincipal,
       repayment_total:repaymentTotal,
       evidence:evidenceHeld,
       third_party_damage:surroundingDamage,
+      source_row_number:sourceRowNumber,
     };
 
     // 같은 이름 + 같은 전화번호는 다른 시트 행이어도 신규 DB를 중복 생성하지 않습니다.
     if(customerName&&phoneNumber){
       const {data:candidates,error:duplicateLookupError}=await supabase
         .from("meta_leads")
-        .select("id,phone_number,meta_native_lead_id,collection_intensity,principal_amount,repayment_total,evidence,third_party_damage")
+        .select("id,phone_number,meta_native_lead_id,source_row_number,collection_intensity,principal_amount,repayment_total,evidence,third_party_damage")
         .eq("customer_name",customerName)
         .limit(100);
       if(duplicateLookupError)throw new Error(duplicateLookupError.message);
@@ -125,6 +128,7 @@ export async function POST(request:Request){
         if(repaymentTotal&&!duplicate.repayment_total)patch.repayment_total=repaymentTotal;
         if(evidenceHeld&&!duplicate.evidence)patch.evidence=evidenceHeld;
         if(surroundingDamage&&!duplicate.third_party_damage)patch.third_party_damage=surroundingDamage;
+        if(sourceRowNumber&&!duplicate.source_row_number)patch.source_row_number=sourceRowNumber;
         if(Object.keys(patch).length){
           const {error:updateError}=await supabase.from("meta_leads").update(patch).eq("id",duplicate.id);
           if(updateError)throw new Error(updateError.message);
