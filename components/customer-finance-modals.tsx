@@ -7,7 +7,7 @@ import {won} from "@/lib/utils";
 
 const field="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-500";
 const textarea="min-h-20 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100";
-const paymentMethods=["계좌이체","카드","현금","기타"];
+const paymentMethods=["계좌이체","로피결제","카드","현금","기타"];
 function today(){return new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())}
 function NumberInput({value,onChange}:{value:number;onChange:(v:number)=>void}){return <input inputMode="numeric" className={field} value={value?value.toLocaleString("ko-KR"):""} placeholder="0" onChange={e=>{const raw=e.target.value.replace(/[^0-9]/g,"");onChange(raw?Number(raw):0)}}/>}
 function Label({text,children}:{text:string;children:ReactNode}){return <label className="text-sm font-semibold">{text}<div className="mt-1.5">{children}</div></label>}
