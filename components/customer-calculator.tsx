@@ -6,7 +6,6 @@ import {Badge,Button,Card} from "@/components/ui";
 import {ContactType,Customer,Repayment,useAdminStore} from "@/components/store";
 import {createClient} from "@/lib/supabase/client";
 import {won} from "@/lib/utils";
-import {useRole} from "@/components/role-provider";
 
 type Tab="guide"|"history"|"settings";
 type GuidePeriod="1주"|"2주"|"3주"|"4주"|"2달";
@@ -52,7 +51,6 @@ function periodAmountsFromRow(x:any):PeriodAmounts{return{"1주":num(x?.guide_1w
 
 export function CustomerCalculator({open,customer,onClose}:{open:boolean;customer:Customer;onClose:()=>void}){
  const s=useAdminStore();
- const {isAdmin}=useRole();
  const [tab,setTab]=useState<Tab>("guide");
  const [guidelines,setGuidelines]=useState<Guideline[]>(contactTypes.map(emptyGuideline));
  const [items,setItems]=useState<Record<string,CalculatorItem>>({});
@@ -118,7 +116,6 @@ export function CustomerCalculator({open,customer,onClose}:{open:boolean;custome
  }
 
  async function saveGuidelines(){
-  if(!isAdmin)return alert("전사 가이드 설정은 최종관리자만 변경할 수 있습니다.");
   setSaving(true);
   const rows=guidelines.map(g=>({contact_type:g.contactType,default_period:g.defaultPeriod,guide_1w_amount:g.periodAmounts["1주"],guide_2w_amount:g.periodAmounts["2주"],guide_3w_amount:g.periodAmounts["3주"],guide_4w_amount:g.periodAmounts["4주"],guide_2m_amount:g.periodAmounts["2달"],memo:g.memo}));
   const {error}=await supabase.from("negotiation_guidelines").upsert(rows,{onConflict:"contact_type"});
@@ -132,7 +129,7 @@ export function CustomerCalculator({open,customer,onClose}:{open:boolean;custome
   setSaving(false);if(error)return alert(error.message);alert("현재 조율 가이드를 이력으로 저장했습니다.");void loadData();
  }
 
- async function deleteSnapshot(id:string){if(!isAdmin)return alert("계산 이력 삭제는 최종관리자만 가능합니다.");if(!window.confirm("이 조율 계산 이력을 삭제할까요?"))return;const {error}=await supabase.from("customer_calculation_snapshots").delete().eq("id",id);if(error)return alert(error.message);setSnapshots(x=>x.filter(s=>s.id!==id))}
+ async function deleteSnapshot(id:string){if(!window.confirm("이 조율 계산 이력을 삭제할까요?"))return;const {error}=await supabase.from("customer_calculation_snapshots").delete().eq("id",id);if(error)return alert(error.message);setSnapshots(x=>x.filter(s=>s.id!==id))}
 
  if(!open)return null;
 
@@ -143,7 +140,7 @@ export function CustomerCalculator({open,customer,onClose}:{open:boolean;custome
     <Button variant="secondary" onClick={onClose}><X size={15}/>닫기</Button>
    </div>
    <div className="shrink-0 border-b border-slate-100 bg-slate-50/70 px-5 py-3">
-    <div className="flex flex-wrap gap-2">{([["guide","조율 가이드"],["history","계산 이력"],...(isAdmin?[["settings","가이드 설정"]]:[])] as [string,string][]).map(([key,label])=><button key={key} type="button" onClick={()=>setTab(key as Tab)} className={`rounded-lg px-3 py-2 text-sm font-bold transition ${tab===key?"bg-blue-600 text-white":"border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>{label}</button>)}</div>
+    <div className="flex flex-wrap gap-2">{([["guide","조율 가이드"],["history","계산 이력"],["settings","가이드 설정"]] as [string,string][]).map(([key,label])=><button key={key} type="button" onClick={()=>setTab(key as Tab)} className={`rounded-lg px-3 py-2 text-sm font-bold transition ${tab===key?"bg-blue-600 text-white":"border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>{label}</button>)}</div>
    </div>
    <div className="overflow-y-auto p-5">
     {loading?<div className="py-16 text-center text-sm font-semibold text-slate-400">조율 계산기 데이터를 불러오는 중입니다...</div>:loadError?<Card className="border-red-200 p-5"><div className="font-bold text-red-700">조율 계산기 DB 업데이트가 필요합니다.</div><div className="mt-2 text-sm text-slate-500">Supabase에서 <b>customer-negotiation-calculator-v3.sql</b>을 실행해주세요.</div><div className="mt-2 break-all text-xs text-red-500">{loadError}</div></Card>:<>
@@ -156,12 +153,12 @@ export function CustomerCalculator({open,customer,onClose}:{open:boolean;custome
        <ReadOnly label="예상 감액액" value={won(x.reduction)} accent/><ReadOnly label="가이드 근거" value={`${x.r.contactType} · ${x.selectedPeriod} · ${won(x.guideDeduction)} 차감`}/><label className="lg:col-span-2 text-xs font-semibold text-slate-500">조율 메모<input className={`${inputClass} mt-1.5`} value={x.item.memo} onChange={e=>updateItem(x.r.id,{memo:e.target.value})} placeholder="업체 성향, 조율 포인트, 특이사항 등"/></label>
       </div></Card>)}
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">예: 현재 상환금액 800,000원 / 텔레그램 2주 공통 감액 가이드 200,000원 → 빠른 가이드 조율금액 600,000원. 실제 업체 상황이 다르면 `실무 목표 조율금액`을 직접 입력하면 그 값이 최종 적용됩니다.</div>
-      <div className="flex flex-wrap justify-end gap-2">{isAdmin&&<Button variant="secondary" onClick={()=>setTab("settings")}><Settings2 size={15}/>가이드 설정</Button>}<Button variant="secondary" disabled={saving} onClick={()=>void saveWorkingValues()}><Save size={15}/>업체별 입력값 저장</Button><Button disabled={saving} onClick={()=>void saveSnapshot()}><History size={15}/>현재 가이드 이력 저장</Button></div>
+      <div className="flex flex-wrap justify-end gap-2"><Button variant="secondary" onClick={()=>setTab("settings")}><Settings2 size={15}/>가이드 설정</Button><Button variant="secondary" disabled={saving} onClick={()=>void saveWorkingValues()}><Save size={15}/>업체별 입력값 저장</Button><Button disabled={saving} onClick={()=>void saveSnapshot()}><History size={15}/>현재 가이드 이력 저장</Button></div>
      </div>}
 
-     {tab==="history"&&<div className="space-y-3"><div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">조율 가이드를 저장하면 당시 업체별 현재 상환금액·선택 기간·공통 감액 가이드·실무 목표금액을 Snapshot으로 보존합니다.</div>{snapshots.length===0?<Card className="p-10 text-center text-sm text-slate-400">저장된 조율 계산 이력이 없습니다.</Card>:snapshots.map(x=><Card key={x.id} className="overflow-hidden"><div className="p-4"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex items-center gap-2"><b>{new Date(x.createdAt).toLocaleString("ko-KR")}</b><Badge tone="blue">{x.snapshotData?.guideVersion==="quick-period-deduction-v3"?"빠른 조율 가이드":"기존 계산 이력"}</Badge></div><div className="mt-2 grid gap-x-6 gap-y-1 text-sm text-slate-600 sm:grid-cols-3"><span>현재 상환합계 <b>{won(x.currentRepaymentAmount)}</b></span><span>적용 조율합계 <b>{won(x.expectedNegotiatedAmount)}</b></span><span>예상 감액합계 <b>{won(x.reductionBenefit)}</b></span></div></div><div className="flex gap-2"><Button variant="secondary" onClick={()=>setExpandedSnapshot(v=>v===x.id?null:x.id)}>{expandedSnapshot===x.id?<ChevronUp size={15}/>:<ChevronDown size={15}/>}상세보기</Button>{isAdmin&&<Button variant="danger" onClick={()=>void deleteSnapshot(x.id)}>삭제</Button>}</div></div></div>{expandedSnapshot===x.id&&<SnapshotDetail snapshot={x}/>}</Card>)}</div>}
+     {tab==="history"&&<div className="space-y-3"><div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">조율 가이드를 저장하면 당시 업체별 현재 상환금액·선택 기간·공통 감액 가이드·실무 목표금액을 Snapshot으로 보존합니다.</div>{snapshots.length===0?<Card className="p-10 text-center text-sm text-slate-400">저장된 조율 계산 이력이 없습니다.</Card>:snapshots.map(x=><Card key={x.id} className="overflow-hidden"><div className="p-4"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex items-center gap-2"><b>{new Date(x.createdAt).toLocaleString("ko-KR")}</b><Badge tone="blue">{x.snapshotData?.guideVersion==="quick-period-deduction-v3"?"빠른 조율 가이드":"기존 계산 이력"}</Badge></div><div className="mt-2 grid gap-x-6 gap-y-1 text-sm text-slate-600 sm:grid-cols-3"><span>현재 상환합계 <b>{won(x.currentRepaymentAmount)}</b></span><span>적용 조율합계 <b>{won(x.expectedNegotiatedAmount)}</b></span><span>예상 감액합계 <b>{won(x.reductionBenefit)}</b></span></div></div><div className="flex gap-2"><Button variant="secondary" onClick={()=>setExpandedSnapshot(v=>v===x.id?null:x.id)}>{expandedSnapshot===x.id?<ChevronUp size={15}/>:<ChevronDown size={15}/>}상세보기</Button><Button variant="danger" onClick={()=>void deleteSnapshot(x.id)}>삭제</Button></div></div></div>{expandedSnapshot===x.id&&<SnapshotDetail snapshot={x}/>}</Card>)}</div>}
 
-     {tab==="settings"&&isAdmin&&<div className="space-y-4"><div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-800"><b>이 가이드라인은 전사 공통입니다.</b> 어느 고객의 조율 계산기에서 수정하든 동일한 값이 저장되어 모든 고객에게 적용됩니다. 감액률 대신 <b>기간별 원화 감액 가이드액</b>을 직접 입력합니다.</div>{guidelines.map(g=><Card key={g.contactType} className="p-4"><div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><div className="font-bold">{g.contactType}</div><div className="mt-1 text-xs text-slate-500">현재 상환금액 - 선택 기간의 공통 감액 가이드액 = 빠른 조율 가이드금액</div></div><Badge tone="green">전사 공통</Badge></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><PeriodField label="기본 선택기간" value={g.defaultPeriod} onChange={v=>updateGuideline(g.contactType,{defaultPeriod:v})}/>{guidePeriods.map(p=><NumberField key={p} label={`${p} 감액 가이드액`} value={g.periodAmounts[p]} onChange={v=>updatePeriodAmount(g.contactType,p,v??0)}/>)}</div><label className="mt-3 block text-xs font-semibold text-slate-500">내부 기준 메모<input className={`${inputClass} mt-1.5`} value={g.memo} onChange={e=>updateGuideline(g.contactType,{memo:e.target.value})} placeholder="연락수단별 조율 특성 또는 가이드 산정 근거"/></label></Card>)}<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-6 text-slate-600">처음에는 모든 기간별 감액 가이드액을 0원으로 두었습니다. 실제 회사 조율기준에 맞는 원화 금액을 직접 입력해 사용하세요. 임의의 감액률이나 가짜 기본값은 적용하지 않습니다.</div><div className="flex justify-end"><Button disabled={saving} onClick={()=>void saveGuidelines()}><Save size={15}/>전사 가이드라인 저장</Button></div></div>}
+     {tab==="settings"&&<div className="space-y-4"><div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-800"><b>이 가이드라인은 전사 공통입니다.</b> 어느 고객의 조율 계산기에서 수정하든 동일한 값이 저장되어 모든 고객에게 적용됩니다. 감액률 대신 <b>기간별 원화 감액 가이드액</b>을 직접 입력합니다.</div>{guidelines.map(g=><Card key={g.contactType} className="p-4"><div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><div className="font-bold">{g.contactType}</div><div className="mt-1 text-xs text-slate-500">현재 상환금액 - 선택 기간의 공통 감액 가이드액 = 빠른 조율 가이드금액</div></div><Badge tone="green">전사 공통</Badge></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><PeriodField label="기본 선택기간" value={g.defaultPeriod} onChange={v=>updateGuideline(g.contactType,{defaultPeriod:v})}/>{guidePeriods.map(p=><NumberField key={p} label={`${p} 감액 가이드액`} value={g.periodAmounts[p]} onChange={v=>updatePeriodAmount(g.contactType,p,v??0)}/>)}</div><label className="mt-3 block text-xs font-semibold text-slate-500">내부 기준 메모<input className={`${inputClass} mt-1.5`} value={g.memo} onChange={e=>updateGuideline(g.contactType,{memo:e.target.value})} placeholder="연락수단별 조율 특성 또는 가이드 산정 근거"/></label></Card>)}<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-6 text-slate-600">처음에는 모든 기간별 감액 가이드액을 0원으로 두었습니다. 실제 회사 조율기준에 맞는 원화 금액을 직접 입력해 사용하세요. 임의의 감액률이나 가짜 기본값은 적용하지 않습니다.</div><div className="flex justify-end"><Button disabled={saving} onClick={()=>void saveGuidelines()}><Save size={15}/>전사 가이드라인 저장</Button></div></div>}
     </>}
    </div>
   </div>

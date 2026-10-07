@@ -18,7 +18,6 @@ import {SalesCalculator} from "@/components/sales-calculator";
 import {ScheduleNoticeModal} from "@/components/schedule-notice";
 import {originalPlannedPayments,paymentRemaining} from "@/lib/payment-metrics";
 import {CustomerTextImport} from "@/components/customer-text-import";
-import {useRole} from "@/components/role-provider";
 
 const field="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-base outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 sm:h-10 sm:text-sm";
 const textarea="min-h-28 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 sm:text-sm";
@@ -79,7 +78,6 @@ function formatLeadDate(v:string){if(!v)return "-";const d=new Date(v);if(Number
 function leadDateOnly(v:string){if(!v)return today();const d=new Date(v);if(Number.isNaN(d.getTime()))return v.slice(0,10)||today();return new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(d)}
 function leadPhoneDigits(v:string){return String(v||"").replace(/\D/g,"").replace(/^82/,"0").slice(0,11)}
 function MetaLeads(){
- const {isAdmin}=useRole();
  const [rows,setRows]=useState<MetaLead[]>([]);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState<string|null>(null);
@@ -229,7 +227,6 @@ function MetaLeads(){
  }
 
  async function removeLead(id:string){
-  if(!isAdmin)return alert("신규 DB 삭제는 최종관리자만 가능합니다.");
   const {error}=await metaSupabase.from("meta_leads").delete().eq("id",id);
   if(error){alert(error.message);return}
   setRows(prev=>prev.filter(x=>x.id!==id));
@@ -348,7 +345,7 @@ function MetaLeads(){
          <a href={`tel:${r.phone.replace(/[^0-9+]/g,"")}`} className="mt-1 inline-block text-sm font-semibold text-blue-700">{r.phone||"연락처 없음"}</a>
          <div className="mt-1 text-[11px] text-slate-400">{formatLeadDate(r.createdAt)}</div>
         </div>
-        {isAdmin&&<Button variant="danger" className="px-2.5" onClick={()=>setDeleteLead(r)}><Trash2 size={14}/>삭제</Button>}
+        <Button variant="danger" className="px-2.5" onClick={()=>setDeleteLead(r)}><Trash2 size={14}/>삭제</Button>
        </div>
 
        <div className="grid grid-cols-2 gap-2 text-sm">
@@ -404,7 +401,7 @@ function MetaLeads(){
          <td className="px-4 py-3"><input className={`${field} min-w-[220px]`} value={r.memo} disabled={r.status==="고객등록완료"} onChange={e=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,memo:e.target.value}:x))} onBlur={e=>void updateLead(r.id,{memo:e.target.value})} placeholder="상담 메모 입력"/></td>
          <td className="px-4 py-3">{r.status==="고객등록완료"?<Badge tone="green">고객등록완료</Badge>:<Badge tone="blue">신규</Badge>}</td>
          <td className="px-4 py-3"><Button disabled={r.status==="고객등록완료"} onClick={()=>beginCustomer(r)}>{r.status==="고객등록완료"?"등록완료":"고객정보등록"}</Button></td>
-         <td className="px-4 py-3">{isAdmin&&<Button variant="danger" onClick={()=>setDeleteLead(r)}><Trash2 size={14}/>삭제</Button>}</td>
+         <td className="px-4 py-3"><Button variant="danger" onClick={()=>setDeleteLead(r)}><Trash2 size={14}/>삭제</Button></td>
         </tr>)
        }
       </tbody>
