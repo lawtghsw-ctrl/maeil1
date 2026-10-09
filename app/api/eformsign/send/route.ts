@@ -45,13 +45,8 @@ export async function POST(req:Request){
   const birthNumber=String(customer.birth_number||"").trim();
   const contractDate=String(customer.contract_date||"");
   const contractAmount=Number(customer.contract_amount||0);
-  const prepaidAmount=Number(customer.upfront_amount||0);
-  const installmentMonths=Number(customer.installment_period||0);
   const lenderUnitPrice=Number(customer.lender_unit_price||0);
   const lenderCount=Number(customer.lender_count||0);
-  const totalInitialFee=lenderCount*lenderUnitPrice;
-  const additionalLenderFee=lenderUnitPrice;
-  const renegotiationFeePerLender=Math.round(lenderUnitPrice*0.5);
   const message=String(body.message||"계약서 확인 후 서명 부탁드립니다.");
   if(!name||(!phone&&!email))return NextResponse.json({error:"고객명과 전화번호 또는 이메일이 필요합니다."},{status:400});
   if(!contractDate)return NextResponse.json({error:"고객정보에 계약일을 입력해주세요."},{status:400});
@@ -68,29 +63,25 @@ export async function POST(req:Request){
   if(!accessToken||!apiUrl)return NextResponse.json({error:tokenError||"이폼사인 Access Token 발급에 실패했습니다.",detail:tokenData},{status:502});
 
   const {month,day}=fieldDateParts(contractDate);
-  const installment=installmentMonths>0;
-  const money=(value:number)=>String(Math.max(0,Math.round(value)));
+  const money=(value:number)=>Math.max(0,Math.round(value)).toLocaleString("ko-KR");
+  // 로파워 사건위임약정서 템플릿의 실제 입력항목 ID에 맞춘 매핑.
+  // 갑_서명란은 고객이 직접 서명해야 하므로 자동 입력하지 않는다.
   const fields=[
-   {id:"customer_name",value:name},
-   {id:"customer_address",value:address},
-   {id:"customer_birth_number",value:birthNumber},
-   {id:"customer_phone",value:String(customer.phone||phone)},
-   {id:"lender_count",value:String(lenderCount)},
-   {id:"total_initial_fee",value:money(totalInitialFee)},
-   {id:"additional_lender_fee",value:money(additionalLenderFee)},
-   {id:"fee_per_lender",value:money(lenderUnitPrice)},
-   {id:"renegotiation_fee_per_lender",value:money(renegotiationFeePerLender)},
-   {id:"total_contract_amount",value:money(contractAmount)},
-   {id:"initial_payment_date",value:prepaidAmount>0?contractDate:""},
-   {id:"payment_installment_mark",value:installment?"V":""},
-   {id:"payment_lump_sum_mark",value:installment?"":"V"},
-   {id:"customer_name_signature",value:name},
-   {id:"contract_month",value:month},
-   {id:"contract_day",value:day},
+   {id:"갑(위임인)이름",value:name},
+   {id:"텍스트 1",value:address},
+   {id:"텍스트 2",value:birthNumber},
+   {id:"텍스트 3",value:String(customer.phone||phone)},
+   {id:"수수료",value:"50"},
+   {id:"사채업체",value:String(lenderCount)},
+   {id:"보수",value:money(contractAmount)},
+   {id:"채권자1건당금액",value:money(lenderUnitPrice)},
+   {id:"텍스트 4",value:month},
+   {id:"텍스트 5",value:day},
+   {id:"갑(위임인)",value:name},
   ];
 
   const document={
-   document_name:`${name} 수임 계약서`,comment:message,
+   document_name:`${name} 사건위임약정서`,comment:message,
    recipients:[{step_type:"05",use_mail:Boolean(email),use_sms:Boolean(phone),member:{name,id:email,sms:{country_code:"+82",phone_number:phone}},auth:{valid:{day:7,hour:0}}}],
    fields,select_group_name:"",notification:[]
   };
