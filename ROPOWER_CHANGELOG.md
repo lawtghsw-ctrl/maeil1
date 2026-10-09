@@ -83,3 +83,9 @@
 - 조율 가이드 설정 및 조율 계산 이력 삭제도 STAFF 허용.
 - 정산 / 기간별 변동내역 / 데이터 집계의 ADMIN 전용 접근은 유지.
 - Supabase RLS 및 soft-delete 차단 트리거 변경용 `09_ROPOWER_STAFF_OPERATIONS_ACCESS_V7_7.sql` 추가.
+
+
+## V7.9
+- 신규 DB `Meta 전송값` → `상태` 명칭 변경
+- `미분류` → `신규DB`, `문자발송` 상태 추가
+- 기존 DB 입고 알림 일괄 제외, 이후 신규 외부 유입부터 입고 알림 표시

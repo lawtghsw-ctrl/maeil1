@@ -80,6 +80,8 @@ async function saveLead(leadgenId:string){
   customer_name:customerName,
   phone_number:phoneNumber,
   meta_native_lead_id:String(lead.id||leadgenId),
+  lead_result:"신규DB",
+  new_db_alert_enabled:true,
  },{onConflict:"meta_lead_id",ignoreDuplicates:true});
  if(error)throw new Error(error.message);
 }

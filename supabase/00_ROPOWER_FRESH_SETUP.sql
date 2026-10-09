@@ -303,7 +303,8 @@ create table if not exists public.meta_leads (
   repayment_total text not null default '',
   evidence text not null default '',
   third_party_damage text not null default '',
-  lead_result text not null default '미분류',
+  lead_result text not null default '신규DB',
+  new_db_alert_enabled boolean not null default true,
   meta_event_name text,
   meta_event_sent_at timestamptz,
   meta_event_error text,
@@ -347,12 +348,15 @@ using (true);
 -- 기존 데이터를 삭제/초기화하지 않고 결과 상태 컬럼만 추가합니다.
 
 alter table if exists public.meta_leads
-  add column if not exists lead_result text not null default '미분류';
+  add column if not exists lead_result text not null default '신규DB';
+
+alter table if exists public.meta_leads
+  add column if not exists new_db_alert_enabled boolean not null default true;
 
 update public.meta_leads
 set lead_result = '전환'
 where status = '고객등록완료'
-  and coalesce(nullif(trim(lead_result), ''), '미분류') = '미분류';
+  and coalesce(nullif(trim(lead_result), ''), '신규DB') in ('미분류','신규DB');
 
 create index if not exists meta_leads_lead_result_idx
   on public.meta_leads(lead_result);
@@ -2031,7 +2035,10 @@ create index if not exists meta_leads_native_lead_id_idx
 
 -- 기존 v15 lead_result 컬럼이 없는 환경도 안전하게 보완
 alter table if exists public.meta_leads
-  add column if not exists lead_result text not null default '미분류';
+  add column if not exists lead_result text not null default '신규DB';
+
+alter table if exists public.meta_leads
+  add column if not exists new_db_alert_enabled boolean not null default true;
 
 -- Supabase Realtime publication에 운영 테이블을 안전하게 추가합니다.
 do $$

@@ -13,7 +13,7 @@ create index if not exists meta_leads_native_lead_id_idx
 
 -- 기존 v15 lead_result 컬럼이 없는 환경도 안전하게 보완
 alter table if exists public.meta_leads
-  add column if not exists lead_result text not null default '미분류';
+  add column if not exists lead_result text not null default '신규DB';
 
 -- Supabase Realtime publication에 운영 테이블을 안전하게 추가합니다.
 do $$

@@ -144,6 +144,8 @@ export async function POST(request:Request){
       phone_number:phoneNumber,
       meta_native_lead_id:nativeLeadId||null,
       memo:"",
+      lead_result:"신규DB",
+      new_db_alert_enabled:true,
       ...leadFields,
     });
 
