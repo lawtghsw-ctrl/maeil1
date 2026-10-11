@@ -46,11 +46,18 @@ export async function POST(request:Request){
   const leadId=String(body?.leadId||"").trim();
   const leadResult=String(body?.leadResult||"").trim() as LeadResult;
   if(!leadId||!allowedResults.includes(leadResult))return NextResponse.json({error:"전송할 신규DB와 Meta 결과값을 확인해주세요."},{status:400});
+  if(leadResult==="허수")return NextResponse.json({ok:true,sent:false,skipped:true,reason:"허수 DB는 Meta 전송 제외"});
 
   const admin=createAdminClient();
   const {data:lead,error}=await admin.from("meta_leads").select("id,meta_lead_id,meta_native_lead_id,customer_name,phone_number").eq("id",leadId).maybeSingle();
   if(error)throw new Error(error.message);
   if(!lead)return NextResponse.json({error:"신규DB를 찾을 수 없습니다."},{status:404});
+  // 수기 DB와 출처를 검증할 수 없는 DB는 광고 전환으로 보고하지 않습니다.
+  const sourceId=String(lead.meta_lead_id||"");
+  const nativeId=String(lead.meta_native_lead_id||"").trim();
+  if(sourceId.startsWith("manual:")||(!nativeId&&!sourceId.startsWith("gsheet:"))){
+   return NextResponse.json({ok:true,sent:false,skipped:true,reason:"Meta 광고 출처가 확인되지 않은 DB는 전송 제외"});
+  }
 
   const datasetId=env("META_CRM_DATASET_ID","META_PIXEL_ID");
   const accessToken=env("META_CRM_ACCESS_TOKEN","META_CONVERSIONS_ACCESS_TOKEN");
@@ -61,7 +68,7 @@ export async function POST(request:Request){
   if(!datasetId||!accessToken){
    const message="Meta CRM CAPI 환경변수가 아직 설정되지 않았습니다.";
    await markLead(leadId,{meta_event_name:eventName,meta_event_sent_at:null,meta_event_error:message});
-   return NextResponse.json({ok:true,sent:false,configured:false,eventName,message});
+   return NextResponse.json({error:message,sent:false,configured:false,eventName},{status:503});
   }
 
   const nativeLeadId=String(lead.meta_native_lead_id||"").trim();
@@ -73,7 +80,7 @@ export async function POST(request:Request){
   if(!Object.keys(userData).length){
    const message="Meta 매칭에 사용할 Lead ID 또는 연락처가 없습니다.";
    await markLead(leadId,{meta_event_name:eventName,meta_event_sent_at:null,meta_event_error:message});
-   return NextResponse.json({ok:true,sent:false,configured:true,eventName,message});
+   return NextResponse.json({error:message,sent:false,configured:true,eventName},{status:422});
   }
 
   const payload:Record<string,unknown>={

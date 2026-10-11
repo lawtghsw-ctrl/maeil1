@@ -104,7 +104,7 @@ export async function POST(request:Request){
   const rawBody=await request.text();
   const appSecret=env("META_APP_SECRET");
   const signature=request.headers.get("x-hub-signature-256")||"";
-  if(appSecret&&!verifyMetaSignature(rawBody,signature,appSecret)){
+  if(!appSecret||!verifyMetaSignature(rawBody,signature,appSecret)){
    return NextResponse.json({error:"Invalid Meta webhook signature"},{status:401});
   }
 

@@ -9,6 +9,7 @@ type SheetLeadPayload={
   full_name?:unknown;
   phone_number?:unknown;
   leadgen_id?:unknown;
+  source_type?:unknown;
   collection_strength?:unknown;
   original_principal?:unknown;
   repayment_total?:unknown;
@@ -85,6 +86,7 @@ export async function POST(request:Request){
     const customerName=str(body.full_name);
     const phoneNumber=formatPhone(str(body.phone_number));
     const nativeLeadId=str(body.leadgen_id);
+    const isInstant=str(body.source_type)==="instant";
     const collectionStrength=str(body.collection_strength);
     const originalPrincipal=str(body.original_principal);
     const repaymentTotal=str(body.repayment_total);
@@ -98,7 +100,7 @@ export async function POST(request:Request){
       return NextResponse.json({error:"created_time 및 이름/연락처 데이터가 필요합니다."},{status:400});
     }
 
-    const sourceKey=["gsheet",spreadsheetId||"unknown",sheetId||"unknown",rowNumber||`${createdTime}:${customerName}:${phoneNumber}`].join(":");
+    const sourceKey=[isInstant?"gsheet-instant":"gsheet",spreadsheetId||"unknown",sheetId||"unknown",rowNumber||`${createdTime}:${customerName}:${phoneNumber}`].join(":");
     const supabase=createAdminClient();
     const parsedRowNumber=Number.parseInt(rowNumber,10);
     const sourceRowNumber=Number.isFinite(parsedRowNumber)&&parsedRowNumber>0?parsedRowNumber:null;

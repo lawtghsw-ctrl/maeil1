@@ -69,7 +69,8 @@ export default function Section(){const {section}=useParams<{section:string}>();
 
 type MetaLeadResult="신규DB"|"문자발송"|"부재중"|"재연락"|"상담중"|"유효리드"|"전환"|"허수";
 const metaLeadResults:MetaLeadResult[]=["신규DB","문자발송","부재중","재연락","상담중","유효리드","전환","허수"];
-type MetaLead={id:string;createdAt:string;sourceRowNumber:number;name:string;phone:string;manager:Manager;coordinationManager:Manager;lenderCount:number;memo:string;collectionIntensity:string;principalAmount:string;repaymentTotal:string;evidence:string;thirdPartyDamage:string;leadResult:MetaLeadResult;status:"신규"|"고객등록완료";customerId:string|null;metaLeadId:string;metaNativeLeadId:string;metaEventName:string;metaEventSentAt:string;metaEventError:string};
+type LeadSource="전체"|"랜딩 광고"|"인스턴트 양식"|"수기등록";
+type MetaLead={source:Exclude<LeadSource,"전체">;id:string;createdAt:string;sourceRowNumber:number;name:string;phone:string;manager:Manager;coordinationManager:Manager;lenderCount:number;memo:string;collectionIntensity:string;principalAmount:string;repaymentTotal:string;evidence:string;thirdPartyDamage:string;leadResult:MetaLeadResult;status:"신규"|"고객등록완료";customerId:string|null;metaLeadId:string;metaNativeLeadId:string;metaEventName:string;metaEventSentAt:string;metaEventError:string};
 type ManualLeadForm={createdAt:string;name:string;phone:string;manager:Manager;coordinationManager:Manager;lenderCount:number;memo:string;collectionIntensity:string;principalAmount:string;repaymentTotal:string;evidence:string;thirdPartyDamage:string};
 const metaSupabase=createClient();
 function manualLeadNow(){const d=new Date();const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,16)}
@@ -77,11 +78,21 @@ function emptyManualLead():ManualLeadForm{return{createdAt:manualLeadNow(),name:
 function formatLeadDate(v:string){if(!v)return "-";const d=new Date(v);if(Number.isNaN(d.getTime()))return v;return new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).format(d)}
 function leadDateOnly(v:string){if(!v)return today();const d=new Date(v);if(Number.isNaN(d.getTime()))return v.slice(0,10)||today();return new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(d)}
 function leadPhoneDigits(v:string){return String(v||"").replace(/\D/g,"").replace(/^82/,"0").slice(0,11)}
+function detectLeadSource(x:any):Exclude<LeadSource,"전체">{
+ const key=String(x.meta_lead_id||"");
+ if(key.startsWith("manual:"))return "수기등록";
+ if(key.startsWith("gsheet-instant:"))return "인스턴트 양식";
+ // V8.0에서 이미 수신한 인스턴트 DB도 기존 리드 ID가 있으면 구분합니다.
+ if(key.startsWith("gsheet:")&&x.meta_native_lead_id)return "인스턴트 양식";
+ return "랜딩 광고";
+}
+function leadSourceBadge(r:MetaLead){return <Badge tone={r.source==="인스턴트 양식"?"blue":"gray"}>{r.source}</Badge>}
 function MetaLeads(){
  const [rows,setRows]=useState<MetaLead[]>([]);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState<string|null>(null);
  const [q,setQ]=useState("");
+ const [sourceFilter,setSourceFilter]=useState<LeadSource>("전체");
  const [page,setPage]=useState(1);
  const [customerOpen,setCustomerOpen]=useState(false);
  const [selectedLead,setSelectedLead]=useState<MetaLead|null>(null);
@@ -94,10 +105,11 @@ function MetaLeads(){
  async function load(silent=false){
   if(!silent)setLoading(true);
   setError(null);
-  const {data,error}=await metaSupabase.from("meta_leads").select("*").order("source_row_number",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false}).order("id",{ascending:false});
+  const {data,error}=await metaSupabase.from("meta_leads").select("*").order("created_at",{ascending:false}).order("id",{ascending:false});
   if(error){setError(error.message);setRows([]);setLoading(false);return}
   setRows((data||[]).map((x:any)=>({
    id:x.id,
+   source:detectLeadSource(x),
    createdAt:x.created_at||"",
    sourceRowNumber:Number(x.source_row_number||0),
    name:x.customer_name||"",
@@ -316,12 +328,14 @@ function MetaLeads(){
  const filtered=useMemo(()=>{
   const query=q.toLowerCase();
   return rows
+   .filter(r=>sourceFilter==="전체"||r.source===sourceFilter)
    .filter(r=>`${r.name} ${r.phone} ${r.leadResult} ${r.memo} ${r.collectionIntensity} ${r.principalAmount} ${r.repaymentTotal} ${r.evidence} ${r.thirdPartyDamage}`.toLowerCase().includes(query))
-   .sort((a,b)=>(b.sourceRowNumber-a.sourceRowNumber)||b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id));
- },[rows,q]);
+   .sort((a,b)=>Date.parse(b.createdAt||"")-Date.parse(a.createdAt||"")||b.id.localeCompare(a.id));
+ },[rows,q,sourceFilter]);
 
  return <>
   <PageHeader title="신규 DB" description="연동된 Google Sheet 신규 DB와 수기 등록 DB를 함께 확인하고 상담 결과를 관리합니다." action={<Button onClick={openManualLead}><Plus size={15}/>DB 수기등록</Button>}/>
+  <div className="mb-3 flex flex-wrap gap-2">{(["전체","랜딩 광고","인스턴트 양식","수기등록"] as LeadSource[]).map(source=><button key={source} type="button" onClick={()=>{setSourceFilter(source);setPage(1)}} className={`rounded-lg border px-3 py-2 text-sm font-semibold ${sourceFilter===source?"border-blue-600 bg-blue-600 text-white":"border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>{source} ({source==="전체"?rows.length:rows.filter(r=>r.source===source).length})</button>)}</div>
   <Card className="mb-4 p-3">
    <SearchBox value={q} onChange={v=>{setQ(v);setPage(1)}} onReset={()=>{setQ("");setPage(1)}} placeholder="고객명, 연락처, 추심강도, 금액, 증거/주변인피해, 메모 또는 상태 검색"/>
   </Card>
@@ -341,7 +355,7 @@ function MetaLeads(){
         <div className="min-w-0">
          <div className="flex flex-wrap items-center gap-2">
           <span className="text-base font-bold text-slate-900">{r.name||"이름 없음"}</span>
-          {r.metaLeadId.startsWith("manual:")&&<Badge tone="gray">수기</Badge>}
+          {leadSourceBadge(r)}
           {r.status==="고객등록완료"?<Badge tone="green">고객등록완료</Badge>:<Badge tone="blue">신규</Badge>}
          </div>
          <a href={`tel:${r.phone.replace(/[^0-9+]/g,"")}`} className="mt-1 inline-block text-sm font-semibold text-blue-700">{r.phone||"연락처 없음"}</a>
@@ -352,13 +366,13 @@ function MetaLeads(){
 
        <div className="grid grid-cols-2 gap-2 text-sm">
         {[
-         ["추심강도",r.collectionIntensity],
-         ["대여원금",r.principalAmount],
-         ["상환총액",r.repaymentTotal],
-         ["증거보유",r.evidence],
+         [r.source==="인스턴트 양식"?"독촉·협박·추심 여부":"추심강도",r.collectionIntensity],
+         [r.source==="인스턴트 양식"?"남은 원금":"대여원금",r.principalAmount],
+         [r.source==="인스턴트 양식"?"총 갚은 금액":"상환총액",r.repaymentTotal],
+         [r.source==="인스턴트 양식"?"총 빌린 금액":"증거보유",r.source==="인스턴트 양식"?"별도 저장 준비 중":r.evidence],
         ].map(([label,value])=><div key={label} className="rounded-lg bg-slate-50 p-2"><div className="text-[11px] font-semibold text-slate-400">{label}</div><div className="mt-1 whitespace-pre-wrap break-words font-semibold text-slate-800">{value||"-"}</div></div>)}
        </div>
-       <div className="rounded-lg border border-slate-100 p-3 text-sm"><div className="text-[11px] font-semibold text-slate-400">주변인피해</div><div className="mt-1 whitespace-pre-wrap break-words text-slate-700">{r.thirdPartyDamage||"-"}</div></div>
+       {r.source!=="인스턴트 양식"&&<div className="rounded-lg border border-slate-100 p-3 text-sm"><div className="text-[11px] font-semibold text-slate-400">주변인피해</div><div className="mt-1 whitespace-pre-wrap break-words text-slate-700">{r.thirdPartyDamage||"-"}</div></div>}
 
        <div className="grid grid-cols-2 gap-2">
         <Label text="영업 담당자"><select className={field} value={r.manager} disabled={r.status==="고객등록완료"} onChange={e=>void updateLead(r.id,{manager:e.target.value as Manager})}>{managerOptions(r.manager).map(m=><option key={m}>{m}</option>)}</select></Label>
@@ -380,19 +394,20 @@ function MetaLeads(){
     <div className="hidden overflow-x-auto md:block">
      <table className="admin-responsive-table w-full min-w-[1960px] text-sm">
       <thead className="bg-slate-50 text-left text-xs text-slate-500">
-       <tr>{["DB 접수일시","고객명","연락처","추심강도","대여원금","상환총액","증거보유","주변인피해","영업 담당자","조율 담당자","상태","메모","등록상태","","삭제"].map(h=><th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr>
+       <tr>{["DB 접수일시","유입경로","고객명","연락처","추심/독촉","대여/남은 원금","상환/갚은 금액","증거보유","주변인피해","영업 담당자","조율 담당자","상태","메모","등록상태","","삭제"].map(h=><th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr>
       </thead>
       <tbody>
-       {loading?<tr><td colSpan={15} className="px-4 py-10 text-center text-slate-400">신규 DB를 불러오는 중입니다...</td></tr>:
+       {loading?<tr><td colSpan={16} className="px-4 py-10 text-center text-slate-400">신규 DB를 불러오는 중입니다...</td></tr>:
         pageRows(filtered,page,10).map(r=><tr key={r.id} className="border-t border-slate-100 align-top">
          <td className="whitespace-nowrap px-4 py-3">{formatLeadDate(r.createdAt)}</td>
-         <td className="whitespace-nowrap px-4 py-3 font-semibold"><div className="flex items-center gap-1.5"><span>{r.name}</span>{r.metaLeadId.startsWith("manual:")&&<Badge tone="gray">수기</Badge>}</div></td>
+         <td className="whitespace-nowrap px-4 py-3">{leadSourceBadge(r)}</td>
+         <td className="whitespace-nowrap px-4 py-3 font-semibold"><div className="flex items-center gap-1.5"><span>{r.name}</span></div></td>
          <td className="whitespace-nowrap px-4 py-3">{r.phone}</td>
          <td className="max-w-[200px] whitespace-normal break-keep px-4 py-3">{r.collectionIntensity||"-"}</td>
          <td className="whitespace-nowrap px-4 py-3 font-semibold">{r.principalAmount||"-"}</td>
          <td className="whitespace-nowrap px-4 py-3 font-semibold">{r.repaymentTotal||"-"}</td>
-         <td className="max-w-[200px] whitespace-normal break-keep px-4 py-3">{r.evidence||"-"}</td>
-         <td className="max-w-[240px] whitespace-normal break-keep px-4 py-3">{r.thirdPartyDamage||"-"}</td>
+         <td className="max-w-[200px] whitespace-normal break-keep px-4 py-3">{r.source==="인스턴트 양식"?"-":r.evidence||"-"}</td>
+         <td className="max-w-[240px] whitespace-normal break-keep px-4 py-3">{r.source==="인스턴트 양식"?"-":r.thirdPartyDamage||"-"}</td>
          <td className="px-4 py-3"><select className={`${field} min-w-[110px]`} value={r.manager} disabled={r.status==="고객등록완료"} onChange={e=>void updateLead(r.id,{manager:e.target.value as Manager})}>{managerOptions(r.manager).map(m=><option key={m}>{m}</option>)}</select></td>
          <td className="px-4 py-3"><select className={`${field} min-w-[110px]`} value={r.coordinationManager} disabled={r.status==="고객등록완료"} onChange={e=>void updateLead(r.id,{coordinationManager:e.target.value as Manager})}>{managerOptions(r.coordinationManager).map(m=><option key={m}>{m}</option>)}</select></td>
          <td className="px-4 py-3">
