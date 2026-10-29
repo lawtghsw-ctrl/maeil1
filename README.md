@@ -1,9 +1,6 @@
-
-## V7 레거시 데이터 재파싱 (2026-09-29)
-
-과거 DB 메모/담당자/현황, 수임인/성공보수, 실제 입금 원장을 재파싱합니다. 적용 전 `ROPOWER_LEGACY_REPARSE_V7.sql`을 Supabase SQL Editor에서 1회 실행하세요. 상세 내용은 `V7_LEGACY_DATA_REPARSE.md`를 참고하세요.
-
 # 로파워 Admin
+
+현재 웹 기능 패치: [V8.2 적용 범위와 데이터 보존](ROPOWER_V8_2_WEB_FEATURE_PATCH.md). 기존 운영 DB에 신규 설치·초기화 SQL을 실행하지 마세요.
 
 협업 로펌용 독립 Admin 복제본입니다.
 

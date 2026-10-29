@@ -13,6 +13,7 @@ export default defineConfig([
       "import/no-anonymous-default-export": "off",
     },
   },
+  { files: ["**/*.cjs"], rules: { "@typescript-eslint/no-require-imports": "off" } },
   globalIgnores([
     ".next/**",
     "out/**",
