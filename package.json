@@ -1,31 +1,32 @@
 {
   "name": "ropower-admin",
-  "version": "5.0.0",
+  "version": "8.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test --test-concurrency=2 tests/*.test.cjs tests/*.test.mjs tests/V37_11_31_READONLY_REGRESSION.cjs V37_9_TEST_INVARIANTS.cjs"
   },
   "dependencies": {
+    "@supabase/ssr": "0.12.4",
+    "@supabase/supabase-js": "2.112.3",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
-    "next": "16.2.12",
+    "next": "16.4.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "recharts": "^2.15.0",
-    "tailwind-merge": "^2.6.0",
-    "@supabase/supabase-js": "^2.57.4",
-    "@supabase/ssr": "^0.7.0"
+    "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.10",
     "@tailwindcss/postcss": "^4.1.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "16.2.12",
+    "eslint-config-next": "16.4.2",
     "postcss": "^8.5.0",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.7.0"

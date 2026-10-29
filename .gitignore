@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+.env*
+.DS_Store
+*.log
+
+# Supabase CLI local metadata
+supabase/.temp/
+
+# Generated TypeScript incremental cache
+*.tsbuildinfo

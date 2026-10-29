@@ -140,7 +140,7 @@ export function CustomerCalculator({open,customer,onClose}:{open:boolean;custome
     <Button variant="secondary" onClick={onClose}><X size={15}/>닫기</Button>
    </div>
    <div className="shrink-0 border-b border-slate-100 bg-slate-50/70 px-5 py-3">
-    <div className="flex flex-wrap gap-2">{([["guide","조율 가이드"],["history","계산 이력"],["settings","가이드 설정"]] as [string,string][]).map(([key,label])=><button key={key} type="button" onClick={()=>setTab(key as Tab)} className={`rounded-lg px-3 py-2 text-sm font-bold transition ${tab===key?"bg-blue-600 text-white":"border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>{label}</button>)}</div>
+    <div className="flex flex-wrap gap-2">{[["guide","조율 가이드"],["history","계산 이력"],["settings","가이드 설정"]].map(([key,label])=><button key={key} type="button" onClick={()=>setTab(key as Tab)} className={`rounded-lg px-3 py-2 text-sm font-bold transition ${tab===key?"bg-blue-600 text-white":"border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>{label}</button>)}</div>
    </div>
    <div className="overflow-y-auto p-5">
     {loading?<div className="py-16 text-center text-sm font-semibold text-slate-400">조율 계산기 데이터를 불러오는 중입니다...</div>:loadError?<Card className="border-red-200 p-5"><div className="font-bold text-red-700">조율 계산기 DB 업데이트가 필요합니다.</div><div className="mt-2 text-sm text-slate-500">Supabase에서 <b>customer-negotiation-calculator-v3.sql</b>을 실행해주세요.</div><div className="mt-2 break-all text-xs text-red-500">{loadError}</div></Card>:<>
