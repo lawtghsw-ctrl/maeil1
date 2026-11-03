@@ -175,38 +175,47 @@ button, a, input, select, textarea { touch-action: manipulation; }
 /* DB management uses grouped columns and compact cards without sideways scrolling. */
 .ropower-lead-list { width:100%; min-width:0; }
 .ropower-leads-table { width:100%; min-width:0; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:12px; font-variant-numeric:tabular-nums; }
-.ropower-leads-table th { padding:9px 8px; background:#f3f7fb; color:#506177; border-bottom:1px solid #dce5ef; font-size:11px; text-align:left; white-space:nowrap; word-break:keep-all; }
-.ropower-leads-table td { min-width:0; padding:8px; vertical-align:top; border-bottom:1px solid #eef2f7; }
+.ropower-lead-customer-col { width:184px; }
+.ropower-lead-application-col { width:200px; }
+.ropower-lead-memo-col { width:24%; }
+.ropower-leads-table th { padding:7px 6px; background:#f3f7fb; color:#506177; border-bottom:1px solid #dce5ef; font-size:11px; text-align:left; white-space:nowrap; word-break:keep-all; }
+.ropower-leads-table td { min-width:0; padding:6px; vertical-align:top; border-bottom:1px solid #eef2f7; }
 .ropower-leads-table tbody tr:last-child td { border-bottom:0; }
 .ropower-leads-table tbody tr:hover { background-color:#f5f9ff; }
 .ropower-lead-cell-label { display:none; }
-.ropower-lead-name { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; word-break:keep-all; overflow-wrap:normal; font-weight:700; line-height:1.4; }
-.ropower-lead-badges { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+.ropower-lead-customer-heading { display:flex; min-width:0; align-items:center; gap:5px; }
+.ropower-lead-name { display:block; flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; word-break:keep-all; overflow-wrap:normal; font-weight:700; line-height:1.4; }
+.ropower-lead-badges { display:flex; flex-shrink:0; align-items:center; gap:4px; }
 .ropower-lead-badges > span { padding:2px 5px; font-size:10px; line-height:1.4; }
-.ropower-lead-phone { margin-top:5px; font-size:12px; font-weight:600; white-space:nowrap; }
-.ropower-lead-date { display:flex; flex-wrap:wrap; gap:2px 5px; margin-top:3px; color:#94a3b8; font-size:10px; line-height:1.4; }
+.ropower-lead-phone { margin-top:3px; font-size:12px; font-weight:600; white-space:nowrap; }
+.ropower-lead-date { display:flex; min-width:0; gap:4px; margin-top:2px; overflow:hidden; color:#94a3b8; font-size:10px; line-height:1.4; white-space:nowrap; }
 .ropower-lead-date > span { white-space:nowrap; }
-.ropower-lead-workflow-controls { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; }
+.ropower-lead-date > span:first-child { flex-shrink:0; }
+.ropower-lead-date > span:last-child { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.ropower-lead-workflow { display:flex; min-width:0; flex-wrap:wrap; align-items:flex-start; gap:3px 8px; }
+.ropower-lead-workflow-controls { display:flex; min-width:0; max-width:100%; flex-wrap:wrap; align-items:center; gap:4px 6px; }
 .ropower-lead-workflow-controls label { display:flex; min-width:0; max-width:100%; align-items:center; gap:4px; }
 .ropower-lead-workflow-controls label > span { flex-shrink:0; color:#64748b; font-size:10px; white-space:nowrap; }
-.ropower-lead-meta-status { display:flex; min-width:0; flex-wrap:wrap; gap:2px 8px; margin-top:3px; font-size:10px; line-height:1.4; }
-.ropower-lead-meta-status > div { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ropower-lead-workflow-footer { display:flex; flex:1 1 290px; min-width:0; flex-wrap:wrap; align-items:center; gap:3px 6px; font-size:10px; line-height:1.4; }
+.ropower-lead-meta-status { display:contents; }
+.ropower-lead-meta-status > div { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ropower-lead-legacy-result { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#64748b; }
 .ropower-leads-table select { width:100%; min-width:0; min-height:28px!important; height:28px!important; padding:2px 5px; font-size:11px; line-height:1.3; }
 .ropower-leads-table .ropower-lead-stage-select { flex:0 0 84px; width:84px; }
 .ropower-lead-workflow-controls label select { flex-shrink:1; max-width:100%; }
 .ropower-lead-contact,.ropower-lead-contact-warnings,.ropower-lead-contact-actions { display:flex; min-width:0; flex-wrap:wrap; align-items:center; gap:4px; }
-.ropower-lead-contact { margin-top:3px; }
+.ropower-lead-contact { display:contents; }
+.ropower-lead-contact-actions { flex-wrap:nowrap; }
 .ropower-lead-contact-warnings > span { padding:2px 4px; font-size:10px; line-height:1.4; }
-.ropower-lead-contact button,.ropower-lead-actions button { min-height:28px; height:28px; padding:0 6px; gap:3px; font-size:11px; white-space:nowrap; }
-.ropower-lead-memo { display:block; width:100%; min-width:0; max-width:100%; min-height:48px; height:48px; resize:vertical; padding:5px 7px; border:1px solid #d6e0ec; border-radius:7px; background:#fff; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
-.ropower-lead-actions { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+.ropower-lead-contact button,.ropower-lead-actions button { min-height:26px; height:26px; padding:0 5px; gap:3px; font-size:11px; white-space:nowrap; }
+.ropower-lead-memo { display:block; width:100%; min-width:0; max-width:100%; min-height:38px; height:38px; resize:vertical; padding:2px 6px; border:1px solid #d6e0ec; border-radius:7px; background:#fff; font-size:12px; line-height:1.3; overflow-wrap:anywhere; }
+.ropower-lead-actions { display:flex; flex-wrap:wrap; gap:4px; margin-top:3px; }
 .ropower-lead-application { margin:0; display:grid; gap:6px; line-height:1.6; }
 .ropower-lead-application-row { display:grid; grid-template-columns:68px minmax(0,1fr); align-items:start; gap:8px; }
 .ropower-lead-application dt { white-space:nowrap; word-break:keep-all; }
 .ropower-lead-application dd { min-width:0; margin:0; white-space:pre-wrap; word-break:keep-all; overflow-wrap:anywhere; }
-.ropower-leads-table .ropower-lead-application { gap:2px; padding:5px 6px; font-size:11px; line-height:1.4; }
-.ropower-leads-table .ropower-lead-application-row { grid-template-columns:56px minmax(0,1fr); gap:5px; }
+.ropower-leads-table .ropower-lead-application { display:inline-grid; width:fit-content; max-width:100%; gap:2px; padding:4px 5px; border-radius:8px; font-size:11px; line-height:1.4; }
+.ropower-leads-table .ropower-lead-application-row { grid-template-columns:56px minmax(0,1fr); gap:4px; }
 @media(max-width:1279px){
  .ropower-leads-table { display:block; }
  .ropower-leads-table colgroup,.ropower-leads-table thead { display:none; }
@@ -215,6 +224,9 @@ button, a, input, select, textarea { touch-action: manipulation; }
  .ropower-leads-table tbody tr:last-child { border-bottom:0; }
  .ropower-leads-table td { display:block; width:auto; min-width:0; padding:6px; border-bottom:0; }
  .ropower-lead-cell-label { display:block; margin-bottom:5px; color:#64748b; font-size:10px; font-weight:700; }
+}
+@media(max-width:767px){
+ .ropower-lead-memo { min-height:48px; height:48px; }
 }
 @media(max-width:639px){
  .ropower-leads-table tbody tr { grid-template-columns:minmax(0,1fr); gap:3px; padding:8px; }
