@@ -227,26 +227,23 @@ export function MetaLeadsV28(){
   <Card className="overflow-hidden">
    <div className="ropower-lead-list">
     <table className="ropower-leads-table">
-     <colgroup>{[18,28,32,22].map((width,index)=><col key={index} style={{width:`${width}%`}}/>)}</colgroup>
+     <colgroup><col className="ropower-lead-customer-col"/><col className="ropower-lead-application-col"/><col/><col className="ropower-lead-memo-col"/></colgroup>
      <thead><tr>{["고객 · 접수","신청정보","진행 · 담당","메모 · 관리"].map(heading=><th key={heading}>{heading}</th>)}</tr></thead>
      <tbody>{loading?<tr><td colSpan={4} className="py-10 text-center text-slate-400">DB를 불러오는 중입니다...</td></tr>:pageRows(filtered,page,10).map(r=><tr key={r.id} className={r.status!=="고객등록완료"&&callWarning(leadLogs(r.id),r.stage,todayIso).active?"bg-red-50/50":""}>
       <td>
-       <span className="ropower-lead-cell-label">고객 · 접수</span>
-       <span className="ropower-lead-name" title={r.name}>{r.name||"이름 없음"}</span>
-       <div className="ropower-lead-badges">{leadSourceBadge(r)}{r.status==="고객등록완료"&&<Badge tone="green">등록완료</Badge>}</div>
+       <div className="ropower-lead-customer-heading"><span className="ropower-lead-name" title={r.name}>{r.name||"이름 없음"}</span><div className="ropower-lead-badges">{leadSourceBadge(r)}</div></div>
        <div className="ropower-lead-phone">{r.phone||"연락처 없음"}</div>
-       <div className="ropower-lead-date"><span>{formatDate(r.createdAt)}</span>{r.sourceRowNumber>0&&<span>#{r.sourceRowNumber}</span>}</div>
+       <div className="ropower-lead-date" title={`${formatDate(r.createdAt)}${r.sourceRowNumber>0?` #${r.sourceRowNumber}`:""}`}><span>{formatDate(r.createdAt)}</span>{r.sourceRowNumber>0&&<span>#{r.sourceRowNumber}</span>}</div>
       </td>
       <td><span className="ropower-lead-cell-label">신청정보</span><LeadApplicationInfo lead={r}/></td>
       <td>
        <span className="ropower-lead-cell-label">진행 · 담당</span>
-       <div className="ropower-lead-workflow-controls">
+       <div className="ropower-lead-workflow"><div className="ropower-lead-workflow-controls">
         <select aria-label={`${r.name} DB 상태`} className={`${field} ropower-lead-stage-select`} value={r.stage} disabled={r.status==="고객등록완료"} onChange={e=>void updateStageAndMeta(r.id,e.target.value as LeadStage)}>{leadStages.map(value=><option key={value}>{value}</option>)}</select>
         <label><span>영업</span><select aria-label={`${r.name} 영업 담당자`} className={field} style={{width:managerSelectWidth(r.manager)}} value={r.manager} onChange={e=>void updateLead(r.id,{manager:e.target.value as Manager})}>{managerOptions(r.manager).map(manager=><option key={manager}>{manager}</option>)}</select></label>
         <label><span>조율</span><select aria-label={`${r.name} 조율 담당자`} className={field} style={{width:managerSelectWidth(r.coordinationManager)}} value={r.coordinationManager} onChange={e=>void updateLead(r.id,{coordinationManager:e.target.value as Manager})}>{managerOptions(r.coordinationManager).map(manager=><option key={manager}>{manager}</option>)}</select></label>
        </div>
-       <div className="ropower-lead-meta-status">{legacyResults.has(r.leadResult)&&<span className="ropower-lead-legacy-result" title={`기존 결과: ${r.leadResult}`}>기존: {r.leadResult}</span>}<div className={leadSendsToMeta(r)?(r.metaEventError?"text-red-500":r.metaEventSentAt?"text-emerald-600":"text-slate-400"):"text-slate-400"} title={r.metaEventError||r.metaEventName}>{leadSendsToMeta(r)?`Meta ${r.metaEventError?"전송오류":r.metaEventSentAt?"전송완료":"전송대기"}`:`Meta 미전송 · ${r.stage}`}</div></div>
-       {renderCallCell({lead:r})}
+       <div className="ropower-lead-workflow-footer">{renderCallCell({lead:r})}<div className="ropower-lead-meta-status">{legacyResults.has(r.leadResult)&&<span className="ropower-lead-legacy-result" title={`기존 결과: ${r.leadResult}`}>기존: {r.leadResult}</span>}<div className={leadSendsToMeta(r)?(r.metaEventError?"text-red-500":r.metaEventSentAt?"text-emerald-600":"text-slate-400"):"text-slate-400"} title={r.metaEventError||r.metaEventName}>{leadSendsToMeta(r)?`Meta ${r.metaEventError?"전송오류":r.metaEventSentAt?"전송완료":"전송대기"}`:`Meta 미전송 · ${r.stage}`}</div></div></div></div>
       </td>
       <td>
        <span className="ropower-lead-cell-label">메모 · 관리</span>
