@@ -186,16 +186,17 @@ button, a, input, select, textarea { touch-action: manipulation; }
 .ropower-lead-phone { margin-top:5px; font-size:12px; font-weight:600; white-space:nowrap; }
 .ropower-lead-date { display:flex; flex-wrap:wrap; gap:2px 5px; margin-top:3px; color:#94a3b8; font-size:10px; line-height:1.4; }
 .ropower-lead-date > span { white-space:nowrap; }
-.ropower-lead-status-line { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); align-items:center; gap:6px; }
-.ropower-lead-meta-status { min-width:0; font-size:10px; line-height:1.4; }
+.ropower-lead-workflow-controls { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; }
+.ropower-lead-workflow-controls label { display:flex; min-width:0; max-width:100%; align-items:center; gap:4px; }
+.ropower-lead-workflow-controls label > span { flex-shrink:0; color:#64748b; font-size:10px; white-space:nowrap; }
+.ropower-lead-meta-status { display:flex; min-width:0; flex-wrap:wrap; gap:2px 8px; margin-top:3px; font-size:10px; line-height:1.4; }
 .ropower-lead-meta-status > div { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ropower-lead-legacy-result { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#64748b; }
 .ropower-leads-table select { width:100%; min-width:0; min-height:28px!important; height:28px!important; padding:2px 5px; font-size:11px; line-height:1.3; }
-.ropower-lead-managers { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:5px; }
-.ropower-lead-managers label { display:flex; min-width:0; align-items:center; gap:4px; }
-.ropower-lead-managers label > span { flex-shrink:0; color:#64748b; font-size:10px; white-space:nowrap; }
+.ropower-leads-table .ropower-lead-stage-select { flex:0 0 84px; width:84px; }
+.ropower-lead-workflow-controls label select { flex-shrink:1; max-width:100%; }
 .ropower-lead-contact,.ropower-lead-contact-warnings,.ropower-lead-contact-actions { display:flex; min-width:0; flex-wrap:wrap; align-items:center; gap:4px; }
-.ropower-lead-contact { margin-top:5px; }
+.ropower-lead-contact { margin-top:3px; }
 .ropower-lead-contact-warnings > span { padding:2px 4px; font-size:10px; line-height:1.4; }
 .ropower-lead-contact button,.ropower-lead-actions button { min-height:28px; height:28px; padding:0 6px; gap:3px; font-size:11px; white-space:nowrap; }
 .ropower-lead-memo { display:block; width:100%; min-width:0; max-width:100%; min-height:48px; height:48px; resize:vertical; padding:5px 7px; border:1px solid #d6e0ec; border-radius:7px; background:#fff; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }

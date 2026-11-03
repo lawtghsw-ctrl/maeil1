@@ -19,7 +19,18 @@ test('browser, server and service clients use only the configured company connec
 });
 test('manual, landing and instant-form DB sources remain distinct',()=>{
  const api=compile(declaration('components/meta-leads-v28.tsx','detectLeadSource')+';exports.detect=detectLeadSource;');
- for(const [row,expected] of [[{meta_lead_id:'manual:fixture'},'수기등록'],[{meta_lead_id:'gsheet-instant:fixture'},'인스턴트 양식'],[{meta_lead_id:'gsheet:fixture',meta_native_lead_id:'123'},'인스턴트 양식'],[{meta_lead_id:'gsheet:fixture'},'랜딩 광고']])assert.equal(api.detect(row),expected);
+ for(const [row,expected] of [
+  [{meta_lead_id:'manual:fixture',meta_native_lead_id:'123'},'수기등록'],
+  [{meta_lead_id:'gsheet-instant:fixture'},'인스턴트 양식'],
+  [{meta_lead_id:'gsheet:fixture',meta_native_lead_id:'123'},'인스턴트 양식'],
+  [{meta_lead_id:'gsheet:fixture',meta_native_lead_id:'legacy-nonnumeric-id'},'인스턴트 양식'],
+  [{meta_lead_id:'123456789012345'},'인스턴트 양식'],
+  [{meta_lead_id:'native-fixture',meta_native_lead_id:'123456789012345'},'인스턴트 양식'],
+  [{meta_lead_id:'native-fixture',meta_native_lead_id:123456789},'인스턴트 양식'],
+  [{meta_lead_id:'native-fixture',meta_native_lead_id:'not-numeric'},'랜딩 광고'],
+  [{meta_lead_id:'123456789abc'},'랜딩 광고'],
+  [{meta_lead_id:'gsheet:fixture'},'랜딩 광고'],
+ ])assert.equal(api.detect(row),expected);
  const form=compile(declaration('components/meta-leads-v28.tsx','emptyManualLead')+';exports.create=emptyManualLead;',{manualLeadNow:()=> '2026-10-29T10:00'}).create();
  assert.equal(form.manager,'신홍규');assert.equal(form.coordinationManager,'신홍규');
 });
