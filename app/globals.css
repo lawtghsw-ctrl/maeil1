@@ -172,6 +172,16 @@ button, a, input, select, textarea { touch-action: manipulation; }
 .dowon-settlements > .grid > div > div:first-child { letter-spacing:-.025em; font-weight:600; }
 .dowon-db-management > :first-child { margin-bottom:14px; }
 .dowon-db-management > :nth-child(2) { border-color:var(--dowon-border); }
+/* DB management columns scroll instead of squeezing Korean text vertically. */
+.ropower-leads-table { width:100%; min-width:1916px; table-layout:fixed; }
+.ropower-leads-table th { white-space:nowrap; word-break:keep-all; }
+.ropower-leads-table td { vertical-align:top; }
+.ropower-lead-name { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; word-break:keep-all; overflow-wrap:normal; }
+.ropower-lead-badges { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+.ropower-lead-application { margin:0; display:grid; gap:6px; line-height:1.6; }
+.ropower-lead-application-row { display:grid; grid-template-columns:68px minmax(0,1fr); align-items:start; gap:8px; }
+.ropower-lead-application dt { white-space:nowrap; word-break:keep-all; }
+.ropower-lead-application dd { min-width:0; margin:0; white-space:pre-wrap; word-break:keep-all; overflow-wrap:anywhere; }
 .dowon-customer-editor .grid { row-gap:12px; }
 .dowon-customer-editor label, .dowon-record-editor label { font-weight:600; color:#42566e; }
 .dowon-customer-editor input, .dowon-customer-editor select,
