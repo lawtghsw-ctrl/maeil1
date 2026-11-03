@@ -8,7 +8,7 @@ import {ConfirmDelete} from "@/components/confirm-delete";
 import {Pagination,pageRows} from "@/components/pagination";
 import {Customer,Manager} from "@/components/store";
 import {CustomerFormFields} from "@/components/customer-form-fields";
-import {LeadApplicationInfo} from "@/components/lead-application-info";
+import {LeadApplicationInfo,showsLegacyApplicationDetails} from "@/components/lead-application-info";
 import {createClient} from "@/lib/supabase/client";
 import {formatPhone} from "@/lib/utils";
 import {getCustomerInstallmentPlan} from "@/lib/installment-plan";
@@ -19,6 +19,7 @@ const textarea="min-h-28 w-full rounded-lg border border-slate-200 bg-white px-3
 const activeManagers:Manager[]=["신홍규","이중호"];
 const staffManager=(v:Manager)=>String(v||"").trim()||"신홍규";
 const managerOptions=(current?:Manager)=>{const value=staffManager(current||"");return activeManagers.includes(value)?activeManagers:[value,...activeManagers]};
+const managerSelectWidth=(manager:Manager)=>Math.max(72,staffManager(manager).length*11+32);
 type LeadStageFilter="전체"|LeadStage;
 const leadStageFilters:LeadStageFilter[]=["전체","신규","부재","설득필요","상담중","계약완료","장기부재","불가","허수"];
 
@@ -37,7 +38,7 @@ function storedStage(stageValue:string|undefined|null,resultValue:MetaLeadResult
 }
 
 type MetaLead={
- source:Exclude<LeadOrigin,"전체">;sourceRowNumber:number;collectionIntensity:string;principalAmount:string;repaymentTotal:string;evidence:string;thirdPartyDamage:string;metaLeadId:string;
+ source:Exclude<LeadOrigin,"전체">;legacyApplicationDetails:boolean;sourceRowNumber:number;collectionIntensity:string;principalAmount:string;repaymentTotal:string;evidence:string;thirdPartyDamage:string;metaLeadId:string;
  id:string;createdAt:string;name:string;phone:string;manager:Manager;coordinationManager:Manager;lenderCount:number;memo:string;
  leadResult:MetaLeadResult;stage:LeadStage;status:"신규"|"고객등록완료";customerId:string|null;
  metaNativeLeadId:string;metaEventName:string;metaEventSentAt:string;metaEventError:string;
@@ -45,17 +46,18 @@ type MetaLead={
 
 type LeadOrigin="전체"|"랜딩 광고"|"인스턴트 양식"|"수기등록";
 function detectLeadSource(x:any):Exclude<LeadOrigin,"전체">{
- const key=String(x.meta_lead_id||"");
+ const key=String(x.meta_lead_id||"").trim();
+ const nativeId=String(x.meta_native_lead_id||"").trim();
  if(key.startsWith("manual:"))return "수기등록";
- if(key.startsWith("gsheet-instant:")||(key.startsWith("gsheet:")&&x.meta_native_lead_id))return "인스턴트 양식";
+ if(key.startsWith("gsheet-instant:")||(key.startsWith("gsheet:")&&nativeId)||/^\d+$/.test(key)||/^\d+$/.test(nativeId))return "인스턴트 양식";
  return "랜딩 광고";
 }
 function hasMetaSource(lead:MetaLead){return !lead.metaLeadId.startsWith("manual:")&&Boolean(lead.metaNativeLeadId||lead.metaLeadId.startsWith("gsheet:")||lead.metaLeadId.startsWith("gsheet-instant:"))}
 function leadSendsToMeta(lead:MetaLead){return hasMetaSource(lead)&&stageSendsToMeta(lead.stage)}
 function leadSourceBadge(r:MetaLead){return <Badge tone={r.source==="인스턴트 양식"?"blue":"gray"}>{r.source}</Badge>}
-type ManualLeadForm={createdAt:string;name:string;phone:string;manager:Manager;coordinationManager:Manager;lenderCount:number;memo:string;collectionIntensity:string;principalAmount:string;repaymentTotal:string;evidence:string;thirdPartyDamage:string};
+type ManualLeadForm={createdAt:string;name:string;phone:string;manager:Manager;coordinationManager:Manager;lenderCount:number;memo:string;collectionIntensity:string;principalAmount:string;repaymentTotal:string};
 function manualLeadNow(){const d=new Date();const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,16)}
-function emptyManualLead():ManualLeadForm{return{createdAt:manualLeadNow(),name:"",phone:"",manager:"신홍규",coordinationManager:"신홍규",lenderCount:0,memo:"",collectionIntensity:"",principalAmount:"",repaymentTotal:"",evidence:"",thirdPartyDamage:""}}
+function emptyManualLead():ManualLeadForm{return{createdAt:manualLeadNow(),name:"",phone:"",manager:"신홍규",coordinationManager:"신홍규",lenderCount:0,memo:"",collectionIntensity:"",principalAmount:"",repaymentTotal:""}}
 
 const supabase=createClient();
 function today(){return kstDateKey()}
@@ -90,7 +92,7 @@ export function MetaLeadsV28(){
   if(logRes.error)setError(`콜 관리 테이블 확인 필요: ${logRes.error.message}`);
   setLogs(mappedLogs);
   const mappedRows:MetaLead[]=(leadRes.data||[]).map((x:any)=>({
-   source:detectLeadSource(x),sourceRowNumber:Number(x.source_row_number||0),collectionIntensity:x.collection_intensity||"",principalAmount:String(x.principal_amount??""),repaymentTotal:String(x.repayment_total??""),evidence:x.evidence||"",thirdPartyDamage:x.third_party_damage||"",metaLeadId:x.meta_lead_id||"",
+   source:detectLeadSource(x),legacyApplicationDetails:x.legacy_application_details===true,sourceRowNumber:Number(x.source_row_number||0),collectionIntensity:x.collection_intensity||"",principalAmount:String(x.principal_amount??""),repaymentTotal:String(x.repayment_total??""),evidence:x.evidence||"",thirdPartyDamage:x.third_party_damage||"",metaLeadId:x.meta_lead_id||"",
    id:x.id,createdAt:x.created_at||"",name:x.customer_name||"",phone:formatPhone(x.phone_number||""),manager:staffManager((x.sales_manager||x.manager||"신홍규") as Manager),coordinationManager:staffManager((x.coordination_manager||"신홍규") as Manager),lenderCount:Number(x.lender_count||0),memo:x.memo||"",
    leadResult:(metaLeadResults.includes(x.lead_result as MetaLeadResult)?x.lead_result:"미분류") as MetaLeadResult,stage:x.status==="고객등록완료"?"계약완료":storedStage(x.lead_stage,(metaLeadResults.includes(x.lead_result as MetaLeadResult)?x.lead_result:"미분류") as MetaLeadResult),status:x.status==="고객등록완료"?"고객등록완료":"신규",customerId:x.customer_id||null,metaNativeLeadId:x.meta_native_lead_id||"",metaEventName:x.meta_event_name||"",metaEventSentAt:x.meta_event_sent_at||"",metaEventError:x.meta_event_error||"",
   }));
@@ -146,8 +148,6 @@ export function MetaLeadsV28(){
     collection_intensity:manualForm.collectionIntensity.trim(),
     principal_amount:manualForm.principalAmount.trim(),
     repayment_total:manualForm.repaymentTotal.trim(),
-    evidence:manualForm.evidence.trim(),
-    third_party_damage:manualForm.thirdPartyDamage.trim(),
     lead_stage:"신규",
     lead_result:"신규DB",
     new_db_alert_enabled:false,
@@ -206,7 +206,7 @@ export function MetaLeadsV28(){
  const completedCount=useMemo(()=>managedRows.filter(r=>r.stage==="계약완료").length,[managedRows]);
  const warningCounts=useMemo(()=>Object.fromEntries(leadStages.map(s=>[s,managedRows.filter(r=>r.status!=="고객등록완료"&&r.stage===s&&callWarning(leadLogs(r.id),r.stage,todayIso).active).length])) as Record<LeadStage,number>,[managedRows,logs,todayIso]);
  const totalWarningCount=useMemo(()=>managedRows.filter(r=>r.status!=="고객등록완료"&&callWarning(leadLogs(r.id),r.stage,todayIso).active).length,[managedRows,logs,todayIso]);
- const filtered=useMemo(()=>{const query=q.trim().toLowerCase();return managedRows.filter(r=>{const stageMatch=stage==="전체"?true:r.stage===stage;return stageMatch&&`${r.name} ${r.phone} ${r.manager} ${r.coordinationManager} ${r.leadResult} ${r.memo} ${r.collectionIntensity} ${r.principalAmount} ${r.repaymentTotal} ${r.evidence} ${r.thirdPartyDamage}`.toLowerCase().includes(query)})},[managedRows,q,stage]);
+ const filtered=useMemo(()=>{const query=q.trim().toLowerCase();return managedRows.filter(r=>{const stageMatch=stage==="전체"?true:r.stage===stage;return stageMatch&&`${r.name} ${r.phone} ${r.manager} ${r.coordinationManager} ${r.leadResult} ${r.memo} ${r.collectionIntensity} ${r.principalAmount} ${r.repaymentTotal} ${showsLegacyApplicationDetails(r)?`${r.evidence} ${r.thirdPartyDamage}`:""}`.toLowerCase().includes(query)})},[managedRows,q,stage]);
  useEffect(()=>setPage(1),[stage,sourceFilter]);
 
  function renderCallCell({lead}:{lead:MetaLead}){
@@ -240,14 +240,12 @@ export function MetaLeadsV28(){
       <td><span className="ropower-lead-cell-label">신청정보</span><LeadApplicationInfo lead={r}/></td>
       <td>
        <span className="ropower-lead-cell-label">진행 · 담당</span>
-       <div className="ropower-lead-status-line">
-        <select aria-label={`${r.name} DB 상태`} className={field} value={r.stage} disabled={r.status==="고객등록완료"} onChange={e=>void updateStageAndMeta(r.id,e.target.value as LeadStage)}>{leadStages.map(value=><option key={value}>{value}</option>)}</select>
-        <div className="ropower-lead-meta-status">{legacyResults.has(r.leadResult)&&<span className="ropower-lead-legacy-result" title={`기존 결과: ${r.leadResult}`}>기존: {r.leadResult}</span>}<div className={leadSendsToMeta(r)?(r.metaEventError?"text-red-500":r.metaEventSentAt?"text-emerald-600":"text-slate-400"):"text-slate-400"} title={r.metaEventError||r.metaEventName}>{leadSendsToMeta(r)?`Meta ${r.metaEventError?"전송오류":r.metaEventSentAt?"전송완료":"전송대기"}`:`Meta 미전송 · ${r.stage}`}</div></div>
+       <div className="ropower-lead-workflow-controls">
+        <select aria-label={`${r.name} DB 상태`} className={`${field} ropower-lead-stage-select`} value={r.stage} disabled={r.status==="고객등록완료"} onChange={e=>void updateStageAndMeta(r.id,e.target.value as LeadStage)}>{leadStages.map(value=><option key={value}>{value}</option>)}</select>
+        <label><span>영업</span><select aria-label={`${r.name} 영업 담당자`} className={field} style={{width:managerSelectWidth(r.manager)}} value={r.manager} onChange={e=>void updateLead(r.id,{manager:e.target.value as Manager})}>{managerOptions(r.manager).map(manager=><option key={manager}>{manager}</option>)}</select></label>
+        <label><span>조율</span><select aria-label={`${r.name} 조율 담당자`} className={field} style={{width:managerSelectWidth(r.coordinationManager)}} value={r.coordinationManager} onChange={e=>void updateLead(r.id,{coordinationManager:e.target.value as Manager})}>{managerOptions(r.coordinationManager).map(manager=><option key={manager}>{manager}</option>)}</select></label>
        </div>
-       <div className="ropower-lead-managers">
-        <label><span>영업</span><select aria-label={`${r.name} 영업 담당자`} className={field} value={r.manager} onChange={e=>void updateLead(r.id,{manager:e.target.value as Manager})}>{managerOptions(r.manager).map(manager=><option key={manager}>{manager}</option>)}</select></label>
-        <label><span>조율</span><select aria-label={`${r.name} 조율 담당자`} className={field} value={r.coordinationManager} onChange={e=>void updateLead(r.id,{coordinationManager:e.target.value as Manager})}>{managerOptions(r.coordinationManager).map(manager=><option key={manager}>{manager}</option>)}</select></label>
-       </div>
+       <div className="ropower-lead-meta-status">{legacyResults.has(r.leadResult)&&<span className="ropower-lead-legacy-result" title={`기존 결과: ${r.leadResult}`}>기존: {r.leadResult}</span>}<div className={leadSendsToMeta(r)?(r.metaEventError?"text-red-500":r.metaEventSentAt?"text-emerald-600":"text-slate-400"):"text-slate-400"} title={r.metaEventError||r.metaEventName}>{leadSendsToMeta(r)?`Meta ${r.metaEventError?"전송오류":r.metaEventSentAt?"전송완료":"전송대기"}`:`Meta 미전송 · ${r.stage}`}</div></div>
        {renderCallCell({lead:r})}
       </td>
       <td>
@@ -273,8 +271,6 @@ export function MetaLeadsV28(){
      <Label text="추심강도"><input className={field} value={manualForm.collectionIntensity} onChange={e=>setManualForm({...manualForm,collectionIntensity:e.target.value})} placeholder="예: 상 / 중 / 하"/></Label>
      <Label text="대여원금"><input className={field} value={manualForm.principalAmount} onChange={e=>setManualForm({...manualForm,principalAmount:e.target.value})} placeholder="예: 300만원"/></Label>
      <Label text="상환총액"><input className={field} value={manualForm.repaymentTotal} onChange={e=>setManualForm({...manualForm,repaymentTotal:e.target.value})} placeholder="예: 450만원"/></Label>
-     <Label text="증거보유"><input className={field} value={manualForm.evidence} onChange={e=>setManualForm({...manualForm,evidence:e.target.value})} placeholder="예: 카톡, 이체내역"/></Label>
-     <label className="text-sm font-semibold sm:col-span-2">주변인피해<textarea className={`${textarea} mt-1.5 min-h-20`} value={manualForm.thirdPartyDamage} onChange={e=>setManualForm({...manualForm,thirdPartyDamage:e.target.value})} placeholder="주변인 연락/협박 등"/></label>
      <label className="text-sm font-semibold sm:col-span-2">메모<textarea className={`${textarea} mt-1.5 min-h-24`} value={manualForm.memo} onChange={e=>setManualForm({...manualForm,memo:e.target.value})} placeholder="상담 메모"/></label>
     </div>
     <div className="flex justify-end gap-2"><Button variant="secondary" disabled={manualSaving} onClick={()=>setManualOpen(false)}>취소</Button><Button disabled={manualSaving} onClick={()=>void saveManualLead()}>{manualSaving?"등록 중...":"DB 등록"}</Button></div>

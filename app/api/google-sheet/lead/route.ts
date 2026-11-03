@@ -90,8 +90,6 @@ export async function POST(request:Request){
     const collectionStrength=str(body.collection_strength);
     const originalPrincipal=str(body.original_principal);
     const repaymentTotal=str(body.repayment_total);
-    const evidenceHeld=str(body.evidence_held);
-    const surroundingDamage=str(body.surrounding_damage);
     const spreadsheetId=str(body.spreadsheet_id);
     const sheetId=str(body.sheet_id);
     const rowNumber=str(body.row_number);
@@ -108,8 +106,6 @@ export async function POST(request:Request){
       collection_intensity:collectionStrength,
       principal_amount:originalPrincipal,
       repayment_total:repaymentTotal,
-      evidence:evidenceHeld,
-      third_party_damage:surroundingDamage,
       source_row_number:sourceRowNumber,
     };
 
@@ -117,7 +113,7 @@ export async function POST(request:Request){
     if(customerName&&phoneNumber){
       const {data:candidates,error:duplicateLookupError}=await supabase
         .from("meta_leads")
-        .select("id,phone_number,meta_native_lead_id,source_row_number,collection_intensity,principal_amount,repayment_total,evidence,third_party_damage")
+        .select("id,phone_number,meta_native_lead_id,source_row_number,collection_intensity,principal_amount,repayment_total")
         .eq("customer_name",customerName)
         .limit(100);
       if(duplicateLookupError)throw new Error(duplicateLookupError.message);
@@ -128,8 +124,6 @@ export async function POST(request:Request){
         if(collectionStrength&&!duplicate.collection_intensity)patch.collection_intensity=collectionStrength;
         if(originalPrincipal&&!duplicate.principal_amount)patch.principal_amount=originalPrincipal;
         if(repaymentTotal&&!duplicate.repayment_total)patch.repayment_total=repaymentTotal;
-        if(evidenceHeld&&!duplicate.evidence)patch.evidence=evidenceHeld;
-        if(surroundingDamage&&!duplicate.third_party_damage)patch.third_party_damage=surroundingDamage;
         if(sourceRowNumber&&!duplicate.source_row_number)patch.source_row_number=sourceRowNumber;
         if(Object.keys(patch).length){
           const {error:updateError}=await supabase.from("meta_leads").update(patch).eq("id",duplicate.id);
