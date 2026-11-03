@@ -1,63 +1,63 @@
-export type SalaryInstallmentPlanRow={dueDate:string;amount:number};
-export type SalaryInstallmentPlan={
- remaining:number;
- monthlyTarget:number;
- months:number;
- rows:SalaryInstallmentPlanRow[];
- mode:"none"|"salary15"|"three_month_equal";
+export type InstallmentPlanRow={dueDate:string;amount:number};
+export type InstallmentPlan={totalAmount:number;remaining:number;monthlyAmount:number;months:number;rows:InstallmentPlanRow[]};
+export type CustomerInstallmentInput={
+ contractAmount:number;prepaidAmount:number;installmentMonths:number;createdAt:string;contractDate?:string;
+ autoCreateInstallments?:boolean;installmentTotal?:number;installmentFirstDate?:string;
+ installmentRows?:InstallmentPlanRow[];installmentPlanSignature?:string;
 };
 
-function validDateParts(value:string){
- const m=String(value||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
- if(!m)return null;
- return {year:Number(m[1]),month:Number(m[2]),day:Number(m[3])};
+const emptyPlan=():InstallmentPlan=>({totalAmount:0,remaining:0,monthlyAmount:0,months:0,rows:[]});
+function dateParts(value:string){
+ const match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+ if(!match)return null;
+ const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]);
+ if(year<1||month<1||month>12||day<1||day>daysInMonth(year,month))return null;
+ return {year,month,day};
 }
-function daysInMonth(year:number,month:number){return new Date(year,month,0).getDate()}
-function ymd(year:number,month:number,day:number){return `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`}
-function dueDateFor(baseDate:string,salaryDay:number,index:number){
- const base=validDateParts(baseDate);
- if(!base)return "";
- const monthOffset=(base.day<=salaryDay?0:1)+index;
- let year=base.year;
- let month=base.month+monthOffset;
- while(month>12){year+=1;month-=12}
- const day=Math.min(Math.max(1,Math.min(31,salaryDay)),daysInMonth(year,month));
- return ymd(year,month,day);
+function daysInMonth(year:number,month:number){
+ if(month===2)return year%4===0&&(year%100!==0||year%400===0)?29:28;
+ return [4,6,9,11].includes(month)?30:31;
 }
-function splitEqual(total:number,count:number){
- if(total<=0||count<=0)return [];
- const base=Math.floor(total/count);
- let remainder=total-base*count;
- return Array.from({length:count},()=>{const extra=remainder>0?1:0;if(remainder>0)remainder-=1;return base+extra});
+function monthlyDate(first:{year:number;month:number;day:number},offset:number){
+ const position=first.month-1+offset,year=first.year+Math.floor(position/12),month=position%12+1;
+ if(year>9999)throw new Error("분납 마지막 날짜가 유효한 기간을 벗어납니다.");
+ const day=Math.min(first.day,daysInMonth(year,month));
+ return `${String(year).padStart(4,"0")}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
 }
 
-/**
- * 급여 기반 분납 규칙
- * - 선납금을 뺀 잔액을 기준으로 계산
- * - 월 기본 납부액은 세후 급여의 15%
- * - 15% 기준으로 3개월 미만이면 잔액을 3개월 균등 분할
- * - 3개월 이상이면 매달 15%씩 받고 마지막 회차에서 잔액 정리
- */
-export function buildSalaryInstallmentPlan(input:{contractAmount:number;prepaidAmount:number;monthlyNetSalary:number;salaryDay:number;baseDate:string}):SalaryInstallmentPlan{
- const contract=Math.max(0,Math.round(Number(input.contractAmount)||0));
- const prepaid=Math.max(0,Math.round(Number(input.prepaidAmount)||0));
- const remaining=Math.max(0,contract-prepaid);
- const salary=Math.max(0,Math.round(Number(input.monthlyNetSalary)||0));
- const salaryDay=Math.max(0,Math.round(Number(input.salaryDay)||0));
- const monthlyTarget=Math.max(0,Math.round(salary*0.15));
- if(!remaining||!monthlyTarget||salaryDay<1||salaryDay>31||!validDateParts(input.baseDate))return{remaining,monthlyTarget,months:0,rows:[],mode:"none"};
- const rawMonths=Math.ceil(remaining/monthlyTarget);
- // 비정상적으로 작은 급여 입력으로 수천 개 일정을 만드는 것을 방지합니다.
- if(rawMonths>600)return {remaining,monthlyTarget,months:0,rows:[],mode:"none"};
- const months=Math.max(3,rawMonths);
- let amounts:number[];
- let mode:SalaryInstallmentPlan["mode"];
- if(rawMonths<3){amounts=splitEqual(remaining,3);mode="three_month_equal"}
- else{
-  amounts=[];let rest=remaining;
-  for(let i=0;i<months;i++){const amount=i===months-1?rest:Math.min(monthlyTarget,rest);amounts.push(amount);rest=Math.max(0,rest-amount)}
-  mode="salary15";
- }
- const rows=amounts.filter(x=>x>0).map((amount,index)=>({dueDate:dueDateFor(input.baseDate,salaryDay,index),amount}));
- return{remaining,monthlyTarget,months:rows.length,rows,mode};
+/** The operator chooses the amount, count and first date. Every row is unpaid. */
+export function buildInstallmentPlan(input:{totalAmount:number;months:number;firstPaymentDate:string}):InstallmentPlan{
+ if(!Number.isSafeInteger(input.totalAmount)||input.totalAmount<0)throw new Error("총 분납금은 0원 이상의 정수로 입력해주세요.");
+ if(input.totalAmount===0)return emptyPlan();
+ if(!Number.isInteger(input.months)||input.months<1||input.months>600)throw new Error("분납 개월 수를 1~600개월로 입력해주세요.");
+ if(input.totalAmount<input.months)throw new Error("각 회차가 1원 이상이 되도록 분납금과 개월 수를 확인해주세요.");
+ const first=dateParts(input.firstPaymentDate);
+ if(!first)throw new Error("첫 납부일을 정확히 입력해주세요.");
+ const monthlyAmount=Math.floor(input.totalAmount/input.months);
+ const rows=Array.from({length:input.months},(_,index)=>({
+  dueDate:monthlyDate(first,index),
+  amount:index===input.months-1?input.totalAmount-monthlyAmount*(input.months-1):monthlyAmount,
+ }));
+ return {totalAmount:input.totalAmount,remaining:input.totalAmount,monthlyAmount,months:input.months,rows};
+}
+
+export function getCustomerInstallmentTotal(input:CustomerInstallmentInput){
+ return input.installmentTotal??Math.max(0,input.contractAmount-input.prepaidAmount);
+}
+export function customerInstallmentSignature(input:CustomerInstallmentInput){
+ return JSON.stringify([input.contractAmount,input.prepaidAmount,getCustomerInstallmentTotal(input),input.installmentMonths,input.installmentFirstDate||input.contractDate||input.createdAt]);
+}
+
+/** Both registration routes save the same validated, explicitly generated preview. */
+export function getCustomerInstallmentPlan(input:CustomerInstallmentInput):InstallmentPlan{
+ if(input.autoCreateInstallments===false)return emptyPlan();
+ const plan=buildInstallmentPlan({totalAmount:getCustomerInstallmentTotal(input),months:input.installmentMonths,firstPaymentDate:input.installmentFirstDate||input.contractDate||input.createdAt});
+ if(!plan.rows.length)return plan;
+ if(input.installmentPlanSignature!==customerInstallmentSignature(input)||!input.installmentRows)throw new Error("총 분납금·개월 수·첫 납부일을 확인하고 [일정 만들기]를 눌러주세요. 입력값을 바꿨다면 다시 만들어주세요.");
+ const rows=input.installmentRows;
+ if(rows.length!==plan.months||rows.some(row=>!dateParts(row.dueDate)||!Number.isSafeInteger(row.amount)||row.amount<=0))throw new Error("분납표의 회차 수·날짜·금액을 확인해주세요. 각 금액은 1원 이상의 정수여야 합니다.");
+ let total=0;
+ for(const row of rows){total+=row.amount;if(!Number.isSafeInteger(total))throw new Error("분납표 합계가 허용되는 금액을 벗어납니다.");}
+ if(total!==plan.totalAmount)throw new Error("분납표 금액의 합계가 총 분납금과 일치해야 합니다.");
+ return {...plan,rows:rows.map(row=>({...row}))};
 }
