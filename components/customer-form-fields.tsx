@@ -1,10 +1,9 @@
 "use client";
 
-import {useState} from "react";
 import {Customer,Manager} from "@/components/store";
 import {Button} from "@/components/ui";
 import {CustomerTextImport} from "@/components/customer-text-import";
-import {buildSalaryInstallmentPlan,SalaryInstallmentPlan} from "@/lib/installment-plan";
+import {buildInstallmentPlan,customerInstallmentSignature,getCustomerInstallmentPlan,getCustomerInstallmentTotal} from "@/lib/installment-plan";
 import {formatBirthNumber,formatPhone,won} from "@/lib/utils";
 
 const field="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-base outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 sm:h-10 sm:text-sm";
@@ -17,24 +16,29 @@ function Label({text,children}:{text:string;children:React.ReactNode}){return <l
 function SectionTitle({title,description}:{title:string;description?:string}){return <div className="mb-3"><div className="text-sm font-black text-slate-900">{title}</div>{description&&<div className="mt-1 text-xs leading-5 text-slate-500">{description}</div>}</div>}
 
 export function CustomerFormFields({open,form,setForm,editing=false,showTextImport=true,onClose,onSave,saveLabel}:{open:boolean;form:Omit<Customer,"id">;setForm:(v:Omit<Customer,"id">)=>void;editing?:boolean;showTextImport?:boolean;onClose:()=>void;onSave:()=>void;saveLabel?:string}){
- const [calculated,setCalculated]=useState<{signature:string;plan:SalaryInstallmentPlan}|null>(null);
  const autoEnabled=form.autoCreateInstallments!==false;
- const calculationSignature=(value:Omit<Customer,"id">)=>JSON.stringify([value.contractAmount,value.prepaidAmount,value.monthlyNetSalary||0,value.salaryDay||0,value.contractDate||value.createdAt]);
- const currentSignature=calculationSignature(form);
- const plan=calculated?.signature===currentSignature?calculated.plan:null;
+ const totalAmount=getCustomerInstallmentTotal(form);
+ const currentSignature=customerInstallmentSignature(form);
+ const planRows=form.installmentPlanSignature===currentSignature?form.installmentRows:undefined;
+ const previewTotal=planRows?.reduce((sum,row)=>sum+row.amount,0)||0;
+ const firstDate=form.installmentFirstDate||form.contractDate||form.createdAt;
+ const monthlyAmount=form.installmentMonths>0?Math.floor(totalAmount/form.installmentMonths):0;
  function patch(next:Partial<Omit<Customer,"id">>){setForm({...form,...next})}
  function calculate(){
   if(form.prepaidAmount>form.contractAmount)return window.alert("선납금은 계약금액보다 클 수 없습니다.");
-  if((form.monthlyNetSalary||0)<=0||(form.salaryDay||0)<1||(form.salaryDay||0)>31)return window.alert("세후 월급여와 급여일(1~31일)을 입력해주세요.");
-  const nextPlan=buildSalaryInstallmentPlan({contractAmount:form.contractAmount,prepaidAmount:form.prepaidAmount,monthlyNetSalary:form.monthlyNetSalary||0,salaryDay:form.salaryDay||0,baseDate:form.contractDate||form.createdAt});
-  if(!nextPlan.rows.length&&form.contractAmount>form.prepaidAmount)return window.alert("계산할 수 없습니다. 계약일과 급여를 확인해주세요. 분납 횟수가 지나치게 많다면 급여 입력값을 확인해주세요.");
-  setCalculated({signature:currentSignature,plan:nextPlan});
-  setForm({...form,installmentMonths:nextPlan.months});
+  try{
+   const plan=buildInstallmentPlan({totalAmount,months:form.installmentMonths,firstPaymentDate:firstDate});
+   const next={...form,installmentMonths:plan.months,installmentRows:plan.rows};
+   setForm({...next,installmentPlanSignature:customerInstallmentSignature(next)});
+  }catch(error){window.alert(error instanceof Error?error.message:"분납 입력값을 확인해주세요.")}
+ }
+ function updatePlanRow(index:number,next:Partial<{dueDate:string;amount:number}>){
+  if(!planRows)return;
+  patch({installmentRows:planRows.map((row,i)=>i===index?{...row,...next}:row)});
  }
  function submit(){
   if(form.contractAmount>0&&form.prepaidAmount>form.contractAmount)return window.alert("선납금은 계약금액보다 클 수 없습니다.");
-  if(!editing&&autoEnabled&&!plan)return window.alert("계약금액, 선납금, 세후 월급여 또는 급여일 입력 후 [계산하기]를 눌러주세요. 계산 후 값을 수정했다면 다시 계산해야 합니다.");
-  if(!editing&&autoEnabled&&form.contractAmount>form.prepaidAmount&&!plan?.rows.length)return window.alert("자동 분납 일정을 만들려면 올바른 세후 월급여와 급여일을 입력하고 [계산하기]를 눌러주세요.");
+  if(!editing){try{getCustomerInstallmentPlan(form)}catch(error){return window.alert(error instanceof Error?error.message:"분납 입력값을 확인해주세요.")}}
   onSave();
  }
  return <div className="space-y-5">
@@ -52,23 +56,30 @@ export function CustomerFormFields({open,form,setForm,editing=false,showTextImpo
    </div>
   </section>
   <section className="rounded-2xl border border-blue-200 bg-blue-50/30 p-4 sm:p-5">
-   <SectionTitle title="계약 · 분납 자동계산" description="금액과 급여일을 모두 입력한 다음 [계산하기]를 눌러 분납표를 생성합니다. 수정 시 다시 계산해야 합니다."/>
+   <SectionTitle title="계약 · 분납 일정" description={editing?"계약정보를 수정합니다. 기존 납부 일정은 입금/분납관리에서 변경해주세요.":"총 분납금과 개월 수, 첫 납부일을 직접 입력해 일정을 만듭니다."}/>
    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
     <Label text="계약일"><input type="date" className={field} value={form.contractDate} onChange={e=>patch({contractDate:e.target.value})}/></Label>
     <Label text="계약금액"><NumberInput value={form.contractAmount} onChange={v=>patch({contractAmount:v})}/></Label>
     <Label text="선납금"><NumberInput value={form.prepaidAmount} onChange={v=>patch({prepaidAmount:v})}/></Label>
-    <Label text="세후 월급여"><NumberInput value={form.monthlyNetSalary||0} onChange={v=>patch({monthlyNetSalary:v})}/></Label>
-    <Label text="급여일 (1~31일)"><NumberInput min={1} max={31} value={form.salaryDay||0} onChange={v=>patch({salaryDay:v})}/></Label>
-    <Label text="월 15% 기준액"><input className={`${field} bg-slate-100 font-bold text-blue-700`} value={plan?.monthlyTarget?won(plan.monthlyTarget):"-"} disabled/></Label>
-    <Label text="자동 분납기간"><input className={`${field} bg-slate-100 font-bold`} value={editing?(form.installmentMonths?`${form.installmentMonths}개월`:"-"):(plan?.months?`${plan.months}개월`:"-")} disabled/></Label>
+    {editing&&<Label text="분납 개월 수"><NumberInput max={600} value={form.installmentMonths} onChange={v=>patch({installmentMonths:v})}/></Label>}
     <Label text="업체당 단가"><NumberInput value={form.lenderUnitPrice} onChange={v=>patch({lenderUnitPrice:v})}/></Label>
     <Label text="업체수"><NumberInput value={form.lenderCount} onChange={v=>patch({lenderCount:v})}/></Label>
    </div>
-   <div className="mt-4 flex flex-wrap items-center gap-3"><Button className="bg-blue-600 px-6 text-white hover:bg-blue-700" onClick={calculate}>계산하기</Button><span className="text-xs font-semibold text-slate-600">{plan?"계산 완료 · 아래 분납표를 확인하세요.":"입력 중 자동 계산하지 않습니다. 계산하기를 눌러주세요."}</span></div>
-   {!editing&&<label className={`mt-4 flex items-start gap-3 rounded-xl border px-4 py-3 ${autoEnabled?"border-blue-200 bg-white":"border-slate-200 bg-slate-50"}`}><input type="checkbox" checked={autoEnabled} onChange={e=>patch({autoCreateInstallments:e.target.checked})} className="mt-0.5 h-4 w-4 accent-blue-600"/><div><div className="text-sm font-bold text-slate-800">분납 일정 자동 생성</div><div className="mt-0.5 text-xs leading-5 text-slate-500">등록과 동시에 선납금은 완료 입금으로, 나머지 분납은 급여일 기준 예정 일정으로 자동 생성합니다.</div></div></label>}
-   {editing&&plan&&<div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">기존 고객 수정: 계산 결과는 미리보기 전용이며, 저장해도 기존 분납 일정은 자동 변경되지 않습니다. 일정 변경은 입금/분납관리에서 진행해주세요.</div>}
-   {autoEnabled&&plan&&plan.rows.length>0&&<div className="mt-4 overflow-hidden rounded-xl border border-blue-100 bg-white"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 bg-blue-50/60 px-4 py-3"><div className="text-sm font-black text-blue-900">자동 생성 예정표</div><div className="text-xs font-semibold text-blue-700">잔액 {won(plan.remaining)} · {plan.mode==="three_month_equal"?"3개월 균등":"월급여 15%"}</div></div><div className="grid gap-px bg-slate-100 sm:grid-cols-2 xl:grid-cols-3">{plan.rows.map((row,i)=><div key={`${row.dueDate}-${i}`} className="flex items-center justify-between bg-white px-4 py-3 text-sm"><span className="font-semibold text-slate-600">{i+1}회 · {row.dueDate}</span><b>{won(row.amount)}</b></div>)}</div></div>}
-   {autoEnabled&&plan&&plan.rows.length===0&&form.contractAmount>form.prepaidAmount&&<div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">자동 분납을 만들려면 세후 월급여와 급여일을 입력해주세요. 계약일이 없으면 등록일 기준으로 계산합니다.</div>}
+   {!editing&&<label className={"mt-4 flex items-start gap-3 rounded-xl border px-4 py-3 "+(autoEnabled?"border-blue-200 bg-white":"border-slate-200 bg-slate-50")}><input type="checkbox" checked={autoEnabled} onChange={e=>patch({autoCreateInstallments:e.target.checked})} className="mt-0.5 h-4 w-4 accent-blue-600"/><div><div className="text-sm font-bold text-slate-800">등록 시 분납 일정 함께 생성</div><div className="mt-0.5 text-xs leading-5 text-slate-500">선납금은 완료 입금으로, 아래 분납표는 입금 전 예정 일정으로 등록합니다.</div></div></label>}
+   {!editing&&autoEnabled&&<div className="mt-4 space-y-4">
+    <p className="text-xs text-slate-600">총 분납금의 기본값은 계약금액에서 선납금을 뺀 금액이며, 직접 변경할 수 있습니다.</p>
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+     <Label text="총 분납금"><NumberInput value={totalAmount} onChange={v=>patch({installmentTotal:v})}/></Label>
+     <Label text="분납 개월 수"><NumberInput min={1} max={600} value={form.installmentMonths} onChange={v=>patch({installmentMonths:v})}/></Label>
+     <Label text="첫 납부일"><input type="date" className={field} value={firstDate} onChange={e=>patch({installmentFirstDate:e.target.value})}/></Label>
+     <Label text="월 분납금"><input className={field+" bg-slate-100 font-bold text-blue-700"} value={monthlyAmount>0?won(monthlyAmount):"-"} readOnly/></Label>
+    </div>
+    <p className="text-xs leading-5 text-slate-600">첫 납부일의 일자로 매월 반복합니다{firstDate?" · 매월 "+Number(firstDate.slice(-2))+"일":""}. 해당 날짜가 없는 달은 말일로 잡고, 나누어떨어지지 않는 금액은 마지막 회차에 반영합니다.</p>
+    <div className="flex flex-wrap items-center gap-3"><Button onClick={calculate}>일정 만들기</Button><span className="text-xs font-semibold text-slate-600">{planRows?"아래 예정표를 확인한 뒤 등록해주세요.":"입력값을 바꾸면 일정을 다시 만들어주세요."}</span></div>
+    {planRows&&planRows.length>0&&<div className="overflow-hidden rounded-xl border border-blue-100 bg-white"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 bg-blue-50/60 px-4 py-3"><b className="text-sm text-blue-900">분납 예정표 · 회차별 수정 가능</b><span className="text-xs font-semibold text-blue-700">{planRows.length}회 · 합계 {won(previewTotal)}</span></div><div className="max-h-96 divide-y divide-slate-100 overflow-y-auto">{planRows.map((row,index)=><div key={index} className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-3 px-4 py-3"><b className="text-xs text-slate-500">{index+1}회</b><label className="text-xs font-semibold text-slate-600">납부일<input type="date" className={field+" mt-1"} value={row.dueDate} onChange={e=>updatePlanRow(index,{dueDate:e.target.value})}/></label><label className="text-xs font-semibold text-slate-600">분납금<NumberInput value={row.amount} onChange={v=>updatePlanRow(index,{amount:v})}/></label></div>)}</div>{previewTotal!==totalAmount&&<p role="status" className="border-t border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">예정표 합계가 총 분납금 {won(totalAmount)}과 일치하도록 회차별 금액을 조정해주세요.</p>}</div>}
+    {totalAmount===0&&<p className="text-xs text-slate-500">총 분납금이 0원이면 분납 일정을 생성하지 않습니다.</p>}
+   </div>}
+   {editing&&<p className="mt-4 text-xs text-slate-500">고객정보 저장으로 기존 분납 일정의 날짜·금액은 변경되지 않습니다.</p>}
   </section>
   <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
    <SectionTitle title="사고 위험 · 메모"/>
